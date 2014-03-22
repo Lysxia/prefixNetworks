@@ -14,12 +14,11 @@
 module WSO (
   -- * Net type
     Fan
-  , Net
+  , Net(..)
   , singleWire
   , opFan
 
   -- ** Operations
-  , width
   , ($-)
   , (|>)
   , stack
