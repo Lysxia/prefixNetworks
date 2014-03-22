@@ -1,3 +1,5 @@
+-- Author: Li-yao Xia, github.com/Syrak
+
 {- |
    \"A new approach to the design of optimal parallel prefix circuits\" [1],
    Technical report, 2006, Mary Sheeran & Ian Parberry.
@@ -305,20 +307,20 @@ brentKung d = foldl1 (|>) [slice2 $ min k (d-k-1) | k <- [0..d `div` 2]]
 
 --
 
--- Combining /Top trees/ (Figure 6, left)
--- (x) denotes multiple wires
---
---   (a0)   ++  (a1)
---  | .. |     | .. |
---  | T  |     | T' |
---  | .. |     | .. |
---  (b0) b1'   (b2) b3'
---  | .. |     | .. |
---  | .. +-----|-..-o
---  | .. |     | .. |
---  | .. b1    | .. b3
---  | .. |     | .. |
---
+{- Combining /Top trees/ (Figure 6, left)
+   (x) denotes multiple wires
+  
+     (a0)   ++  (a1)
+    | .. |     | .. |
+    | T  |     | T' |
+    | .. |     | .. |
+    (b0) b1'   (b2) b3'
+    | .. |     | .. |
+    | .. +-----|-..-o
+    | .. |     | .. |
+    | .. b1    | .. b3
+    | .. |     | .. |
+ -}
 combineT :: Net a -> Net a -> Net a
 combineT t t' = Net (n+m) net'
   where n = width t
@@ -331,20 +333,20 @@ combineT t t' = Net (n+m) net'
                        [b1, b3]   = f (b1' ++ b3') -- one element lists
                    in b0 ++ [b1] ++ b2 ++ [b3]
 
--- Combining /Bottom trees/
---
---  ( c0_)  ++  ( c1_)
---  c0'  (c1)   c2'  (c3)
---  | .. |      | .. |
---  +-..-|------o .. |
---  | .. |      | .. |
---  c0.. |      c2.. |
---  | .. |      | .. |
---  | B  |      | B' |
---  | .. |      | .. |
---   (d0)        (d1)
---  | .. |      | .. |
---
+{- Combining /Bottom trees/
+  
+    ( c0_)  ++  ( c1_)
+    c0'  (c1)   c2'  (c3)
+    | .. |      | .. |
+    +-..-|------o .. |
+    | .. |      | .. |
+    c0.. |      c2.. |
+    | .. |      | .. |
+    | B  |      | B' |
+    | .. |      | .. |
+     (d0)        (d1)
+    | .. |      | .. |
+ -}
 combineB :: Net a -> Net a -> Net a
 combineB b b' = Net (n+m) net'
   where n = width b
