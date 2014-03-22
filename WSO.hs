@@ -1,39 +1,91 @@
-module WSO where
+{- |
+   "A new approach to the design of optimal parallel prefix circuits" [1],
+   Technical report, 2006, Mary Sheeran & Ian Parberry.
+
+   Implementation of networks/circuits described in the paper [1],
+   in a style inspired by:
+   "Functional and dynamic programming in the
+    design of parallel prefix networks" [2]
+-}
+
+module WSO (
+  -- * Net type
+    Fan
+  , Net
+  , singleWire
+  , opFan
+
+  -- ** Operations
+  , width
+  , ($-)
+  , (|>)
+  , stack
+
+  -- * Some statistics
+  , printCheck
+  , size
+  , depth
+  , fanout
+
+  -- * \"Pretty\" printing
+  , FanPos
+  , printNet
+
+  -- * Prefix networks
+  -- ** Serial
+  , serial
+
+  -- ** Slices
+  -- *** Fanout 2
+  , slices2
+  , brentKung
+  , slice2
+
+  , tTree
+  , bTree
+
+  -- *** Any fanout
+  , slice00
+  , t1Tree
+  , b1Tree
+
+
+  -- * Helper functions
+  , partition'
+  ) where
 
 import Data.List
 
--- [1] "A new approach to the design of optimal parallel prefix circuits",
--- Technical report, 2006, Mary Sheeran & Ian Parberry.
-
--- Implementation of networks/circuits described in the paper [1],
--- in a style inspired by:
--- [2] "Functional and dynamic programming in the
---  design of parallel prefix networks",
-
--- As in [2], networks are parameterized by a "fan" component.
-
 type Fan a = [a] -> [a]
-
-{- |
- - The presented construction use and produce fixed-width (number of inputs)
- - networks, even though the @net@ member may be applied to other lengths.
- - Denote values of type @Net a@ by c
- -}
 
 data Net a = Net
   { width :: Int
   , net   :: Fan a -> [a] -> [a]
   }
 
+{- ^
+   The presented construction use and produce /fixed-width/
+   (width: number of inputs)
+   networks, even though the @net@ member may be applied to other lengths.
+
+   Variables of type @ Net a @ will use names @c@, @d@, ...
+
+   As in [2], networks are parameterized by a \"fan\" component.
+ -}
+
 {- |
- - To be combined with @($)@ to form a 'ternary' operator:
- -
- - @
- -     c $- f $ l
- - @
- -
- - Enforce the width restriction. Fails if the list argument does not have the
- - right length. Otherwise return @net c f l@.
+   To be combined with @($)@ to form a 'ternary' operator:
+  
+   @
+       c $- f $ l
+   @
+  
+   Enforce the width restriction.
+
+   If the list argument does not have the right length, fail.
+
+   Otherwise return @net c f l@, that is to say: substitute
+   the argument fan @f@ in @c@ and evaluate the circuit with @l@ as input.
  -}
 ($-) :: Net a -> Fan a -> [a] -> [a]
 ($-) c f l = net c f $ l `with_length` width c
@@ -43,18 +95,32 @@ data Net a = Net
           else
             error $ "Expected length " ++ show n ++ ", got " ++ show (length l)
 
--- |The only width 1 prefix network
+-- | Network composition, by plugging the last output of
+--   the one network as the first input of the other network
+(|>) :: Net a -> Net a -> Net a
+c @ ( Net n _ ) |> d @ ( Net m _ ) = Net (n+m-1) z
+  where z f l = let (a0, c0) = splitAt n l
+                    (a, b') = splitAt (n-1) $ c $- f $ a0
+                    b = d $- f $ (b' ++ c0)
+                in a ++ b
+
+-- | Plug the output of the second network into the input of the first one
+stack :: Net a -> Net a -> Net a
+stack c @ ( Net n net1 ) d @ ( Net _ net2 ) = Net n net'
+  where net' f = (c $- f) . (d $- f)
+
+-- | The only width 1 prefix network
 singleWire :: Net a
 singleWire = Net { width = 1, net = const id }
 
--- |Fan associated to a binary operator
+-- | Fan associated to a binary operator
 opFan :: (a -> a -> a) -> [a] -> [a]
 opFan o (x : xs) = x : [x `o` x' | x' <- xs]
 
 --
 
--- |Visual verification of networks using list concatenation
---  (helps debugging networks, prefix or not)
+-- | Visual verification of networks using list concatenation
+--   (helps debugging networks, prefix or not)
 printCheck :: Net [Int] -> IO ()
 printCheck = putStrLn . show' . check
 
@@ -93,13 +159,14 @@ foFan xs = replicate n fo
 
 --
 
--- |Network display
+-- | The type used to collect fan positions
 data FanPos = FanPos
-  { wireNum  :: Int
-  , curDepth :: Int
-  , fans     :: [(Int, [Int])]
+  { wireNum  :: Int            -- ^ Wire identifier
+  , curDepth :: Int            -- ^ Current depth of the wire
+  , fans     :: [(Int, [Int])] -- ^ Fans and their depth
   }
 
+-- | Print an ASCII drawing of the network
 printNet :: Net FanPos -> IO ()
 printNet = putStrLn . draw
 
@@ -156,8 +223,8 @@ draw c = intercalate "\n" $ intersperse (replicate' n " |") lines
 
 --
 
--- |@serial n@: Serial prefix network of width @n@
-serial :: Int -> Net a
+-- | Serial prefix network
+serial :: Int {- ^ width @n@ -} -> Net a
 serial n = Net
   { width = n
   , net   = net'
@@ -170,18 +237,13 @@ checkSerial = printCheck $ serial 10
 
 --
 
-{- |
- - Network composition, by plugging the last output of
- - the first node to that of the second one
- -}
-(|>) :: Net a -> Net a -> Net a
-c @ ( Net n _ ) |> d @ ( Net m _ ) = Net (n+m-1) z
-  where z f l = let (a0, c0) = splitAt n l
-                    (a, b') = splitAt (n-1) $ c $- f $ a0
-                    b = d $- f $ (b' ++ c0)
-                in a ++ b
+-- | /DSO/ prefix network
+slices2 :: Int {- ^ depth -} -> Net a
+slices2 d = foldl1 (|>) [slice2 $ min k (d-k-1) | k <- [0..d-1]]
 
---
+-- | Brent-Kung construction (using slices)
+brentKung :: Int {- ^ depth -} -> Net a
+brentKung d = foldl1 (|>) [slice2 $ min k (d-k-1) | k <- [0..d `div` 2]]
 
 -- Combining /Top trees/ (Figure 6, left)
 -- (x) denotes multiple wires
@@ -235,7 +297,7 @@ combineB b b' = Net (n+m) net'
                        d1         = b' $- f $ (c2 : c3)
                    in d0 ++ d1
 
--- Combine __T__ and __B__ trees to create a /WSO1/ network
+-- Combine T and B trees to create a /WSO1/ network
 stackWSO1 :: Net a -> Net a -> Net a
 stackWSO1 tT bT = Net (n+1) net'
   where n = width bT -- == width tT
@@ -247,36 +309,29 @@ stackWSO1 tT bT = Net (n+1) net'
              -- d1       = c2
             in d0 ++ [c2]
 
--- |@tTree k@: __T__ tree with depth @k@
-tTree :: Int -> Net a
+-- | T tree
+tTree :: Int {- ^ depth -} -> Net a
 tTree 0 = singleWire
 tTree k = combineT t t
   where t = tTree (k-1)
 
--- |@bTree k@: __B__ tree with depth @k@
-bTree :: Int -> Net a
+-- | B tree
+bTree :: Int {- ^ depth -} -> Net a
 bTree 0 = singleWire
 bTree k = combineB b b
   where b = bTree (k-1)
 
--- |@slice2 k@: Slice with fanout 2 and depth @2*k+1@
--- (__B__ and __T__ of depth @k@)
-slice2 :: Int -> Net a
+-- | Slice with fanout 2 and depth @2*k+1@
+slice2 :: Int {- ^ depth of B and T -} -> Net a
 slice2 k = stackWSO1 (tTree k) (bTree k)
-
--- |@slices2 d@: /WSO/ prefix network of depth @d@
-slices2 :: Int -> Net a
-slices2 d = foldl1 (|>) [slice2 $ min k (d-k-1) | k <- [0..d-1]]
-
--- |@brentKung d@: Depth @d@ Brent-Kung construction (using slices)
-brentKung :: Int -> Net a
-brentKung d = foldl1 (|>) [slice2 $ min k (d-k-1) | k <- [0..d `div` 2]]
 
 --
 
--- |@sklansky n@: Width @n@ Sklansky construction
--- If @n@ is odd, the middle wire is put to the left (yields a smaller circuit)
-sklansky :: Int -> Net a
+-- | Sklansky construction
+--
+-- If the width @n@ is odd,
+-- the middle wire is put to the left (yields a smaller circuit)
+sklansky :: Int {- ^ width -} -> Net a
 sklansky n = Net n (net' n)
   where net' 1 _ l = l
         net' n f l = let (l1, l2) = splitAt (n - (n `div` 2)) l
@@ -285,8 +340,10 @@ sklansky n = Net n (net' n)
                          (t1, t2) = splitAt (n - (n `div` 2) - 1) s1
                      in t1 ++ f (t2 ++ s2)
 
--- |@sklansky n@: Width @n@ Sklansky construction (Alternative)
--- If @n@ is odd, the middle wire is put to the right.
+-- | Sklansky construction (Alternative)
+--
+-- If the width @n@ is odd, the middle wire is put to the right.
+sklansky' :: Int {- ^ width -} -> Net a
 sklansky' n = Net n (net' n)
   where net' 1 _ l = l
         net' n f l = let (l1, l2) = splitAt (n `div` 2) l
@@ -299,8 +356,8 @@ checkSklansky = printCheck $ sklansky 20
 
 --
 
--- Net whose first fan can be extended with new wires on the right
--- (so that they are combined with the first wire, and put in the second elt.)
+-- | Net whose first fan can be extended with new wires on the right
+--   (so that they are combined with the first wire, and put in the second elt.)
 data OpenNet a = OpenNet
   { widthON :: Int
   ,   netON :: Fan a -> [a] -> ([a], [a])
@@ -314,9 +371,10 @@ oSingleWire = OpenNet 1 oNet
 closeNet :: OpenNet a -> Net a
 closeNet ( OpenNet n oNet ) = Net n $ (fst .) . oNet
 
--- |B1 construction
--- @b1Tree t b@: __B__ tree with depth @<= b@ matching @t1Tree t b@
-b1Tree :: Int -> Int -> Net a
+-- | @ b1Tree t b @
+--
+--   B1 tree with depth @<= b@ matching @ t1Tree t b @
+b1Tree :: Int  -> Int  -> Net a
 b1Tree t b = closeNet $ b1Trees !! t !! b
 
 -- Memoization strategy
@@ -338,8 +396,9 @@ b1Tree' t b = OpenNet (n+m) net'
                        (k1,       []) = netON right f (k1' : l1)
                    in (k0 ++ k1, k2)
 
--- |T1 construction
--- @t1Tree t b@: __T__ tree with depth @<= t@ matching @b1Tree t b@
+-- | @ t1Tree t b @
+--
+--   T1 tree with depth @<= t@ matching @ b1Tree t b @
 t1Tree :: Int -> Int -> Net a
 t1Tree t b = t1Trees !! t !! b
 
@@ -362,13 +421,16 @@ t1Tree' t b = Net (n+m) net'
                        [j1, j3] = f (k1 ++ k3)
                    in k0 ++ [j1] ++ k2 ++ [j3]
 
--- |@slice00 t b@: The slice construction resulting from __T1__ and __B1__
+-- | @ slice00 t b @
+--
+--   The slice construction resulting from T1 and B1
 slice00 t b = stackWSO1 (t1Tree t b) (b1Tree t b)
 
 --
 
--- |@partition' [p1, ..., pn] l@ partitions the second argument
--- into sublists of sizes @p1@, ..., @pn@.
+-- | @ partition' [p1, ..., pn] l @
+--
+--   partitions the second argument into sublists of sizes @p1@, ..., @pn@.
 partition' :: [Int] -> [a] -> [[a]]
 partition'       [] l = [l]
 partition' (p : ps) l = u : partition' ps v
@@ -404,8 +466,4 @@ tRootTrees nets = Net n net'
                                x xs
                 out    = zipWith (\x y -> init x ++ [y]) s' (fxs ++ [acc])
             in h : concat out
-
-stack :: Net a -> Net a -> Net a
-stack ( Net n net1 ) ( Net _ net2 ) = Net n net'
-  where net' f = net1 f . net2 f
 
