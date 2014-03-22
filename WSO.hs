@@ -1,11 +1,11 @@
 {- |
-   "A new approach to the design of optimal parallel prefix circuits" [1],
+   \"A new approach to the design of optimal parallel prefix circuits\" [1],
    Technical report, 2006, Mary Sheeran & Ian Parberry.
 
    Implementation of networks/circuits described in the paper [1],
    in a style inspired by:
-   "Functional and dynamic programming in the
-    design of parallel prefix networks" [2]
+   \"Functional and dynamic programming in the
+    design of parallel prefix networks\" [2]
 -}
 
 module WSO (
@@ -23,10 +23,11 @@ module WSO (
   , (|||)
 
   -- * Some statistics
-  , printCheck
   , size
   , depth
   , fanout
+
+  , printCheck
 
   -- * \"Pretty\" printing
   , FanPos
@@ -131,7 +132,7 @@ c @ ( Net n _ ) ||| d @ ( Net m _ ) = Net (n+m) e'
                  in b0 ++ b1
 
 -- | Plug the output of the first network into the input of the second one
---   They have to be of the same length !
+--   They must have the same length !
 stack :: Net a -> Net a -> Net a
 stack c @ ( Net n _ ) d @ ( Net m _ ) =
     if n == m then Net n net'
@@ -172,6 +173,7 @@ dpFan xs = replicate n (d+1)
 
 --
 
+-- | Maximum fanout
 fanout c = maximum $ c $- foFan $ replicate (width c) 0
 
 foFan :: Fan Int
@@ -459,7 +461,7 @@ t1Tree' t b = Net (n+m) net'
 --   The slice construction resulting from T1 and B1
 --
 --   An uneven choice of parameters @t@ and @b@ (@ t > b @) produces a wider
---   circuit than @ slice2 (t+b) `div` 2 @ by exploiting the absence of
+--   circuit than @ slice2 $ (t+b) \`div\` 2 @ by exploiting the absence of
 --   restriction on fanout.
 slice00 t b = stack (singleWire ||| t1Tree t b) (b1Tree t b)
 
@@ -467,13 +469,15 @@ slice00 t b = stack (singleWire ||| t1Tree t b) (b1Tree t b)
 
 -- | @ partition' [p1, ..., pn] l @
 --
---   partitions the second argument into sublists of sizes @p1@, ..., @pn@.
+--   Partition the second argument into sublists of sizes @p1@, ..., @pn@, @*@.
+--
+--   The last one corresponds to all remaining elements.
 partition' :: [Int] -> [a] -> [[a]]
 partition'       [] l = [l]
 partition' (p : ps) l = u : partition' ps v
   where (u, v) = splitAt p l
 
---
+-- *** Fanout f
 
 -- Add a "root" fan which covers
 -- the first wire of every sub-network + a new wire
