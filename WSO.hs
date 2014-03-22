@@ -115,27 +115,25 @@ opFan o (x : xs) = x : [x `o` x' | x' <- xs]
 ($-) :: Net a -> Fan a -> [a] -> [a]
 ($-) c f l = net c f $ l `with_length` width c
   where l `with_length` n =
-          if length l == n then
-            l
-          else
-            error $ "Expected length " ++ show n ++ ", got " ++ show (length l)
+          if length l == n
+            then l
+            else error $ "Expected length " ++ show n
+                      ++ ", got " ++ show (length l)
 
 -- | Network composition, by plugging the last output of
 --   one network as the first input of the other network
 (|>) :: Net a -> Net a -> Net a
 c @ ( Net n _ ) |> d @ ( Net m _ ) = Net (n+m-1) e'
-  where e' f l = let (a0, c0) = splitAt n l
-                     (a, b') = splitAt (n-1) $ c $- f $ a0
-                     b = d $- f $ (b' ++ c0)
-                in a ++ b
+  where e' f l = let (a0, a1) = splitAt n l
+                     (b0, b1) = splitAt (n-1) $ c $- f $ a0
+                     c        = d $- f $ (b1 ++ a1)
+                in b0 ++ c
 
 -- | Juxtapose two networks
 (|||) :: Net a -> Net a -> Net a
 c @ ( Net n _ ) ||| d @ ( Net m _ ) = Net (n+m) e'
-  where e' f l = let (a0, a1) = splitAt n l
-                     b0       = c $- f $ a0
-                     b1       = d $- f $ a1
-                 in b0 ++ b1
+  where e' f l = (c $- f $ a0) ++ (d $- f $ a1)
+          where (a0, a1) = splitAt n l
 
 -- | Plug the output of the first network into the input of the second one
 --   They must have the same length !
@@ -209,6 +207,8 @@ vPrintNet = printLines . map (map swapChar) . transpose . draw2
                    | c == '|'  = '-'
                    | otherwise = c
 
+--
+
 dispFan :: [FanPos] -> [FanPos]
 dispFan [w] = [w]
 dispFan wires @ (FanPos i _ fs : fps) = fp' : fps'
@@ -226,22 +226,22 @@ bottomUp = map (\fp -> fp { fans = reverse $ fans fp })
 replicate' :: Int -> [a] -> [a]
 replicate' = (concat .) . replicate
 
-intersperse' k x = aux
-  where aux        [] = []
-        aux       [y] = [y]
-        aux (y1 : ys) = y1 : kx ++ aux ys
-        kx            = replicate k x
+{- Gather fans in lines a fan is given by (firstWire, [remaining])
+  
+   Split overlapping fans over several lines
 
--- Gather fans in lines a fan is given by (firstWire, [remaining])
--- Overlapping fans are split over several lines
--- Greedy:
---   Take the first fan that fits,
---   repeat until end of line (adding fans to one line),
---   repeat until no more fans (creating new lines).
--- Is that optimal?
+   Greedy algorithm:
+     Take the first fan that fits,
+     repeat until end of line (adding fans to one line),
+     repeat until no more fans (creating new lines).
+
+   Is that optimal (in the number of lines)?
+ -}
 layout :: [FanPos] -> [[[(Int, [Int])]]]
 layout fps = layout' 0 fps [] []
-  where layout' _  [] curLine lines = reverse $ curLine : lines
+  where layout' _  [] curLine lines = reverse
+                                    $ if null curLine then lines
+                                                      else curLine : lines
         layout' d fps curLine lines =
           if null lo
             then layout' (d+1) fps'             [] $ reverse curLine : lines
@@ -312,6 +312,8 @@ printLines = foldr
                ((>>) . putStrLn)
              $ return ()
 
+--
+ 
 -- * Prefix networks
 
 -- ** Serial
