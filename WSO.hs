@@ -34,7 +34,7 @@ module WSO (
   -- * \"Pretty\" printing
   , FanPos
   , printNet
-  , vPrintNet
+  , printNetV
 
   -- * Prefix networks
   -- ** Serial
@@ -201,8 +201,8 @@ printNet = printLines . draw
 
 -- | Print circuit vertically
 --   (wide circuits get messed up by terminal line wrap horizontally)
-vPrintNet :: Net FanPos -> IO ()
-vPrintNet = printLines . map (map swapChar) . transpose . draw2
+printNetV :: Net FanPos -> IO ()
+printNetV = printLines . reverse . map (map swapChar) . transpose . draw2
   where swapChar '-' = '|'
         swapChar '|' = '-'
         swapChar  x  = x

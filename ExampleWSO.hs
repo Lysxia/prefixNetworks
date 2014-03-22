@@ -21,7 +21,7 @@ main = do
   putStrLn "Much wider for the same depth:"
   netInfo "slice00" $ slice00 (k+1) k
   putStrLn "Even more:"
-  netInfo "slice00" $ slice00 (k+2) (k-1)
+  printNetV $ slice00 (k+2) (k-1)
 
   where n = 7
         m = 9
