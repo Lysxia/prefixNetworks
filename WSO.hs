@@ -115,7 +115,7 @@ opFan o (x : xs) = x : [x `o` x' | x' <- xs]
             error $ "Expected length " ++ show n ++ ", got " ++ show (length l)
 
 -- | Network composition, by plugging the last output of
---   the one network as the first input of the other network
+--   one network as the first input of the other network
 (|>) :: Net a -> Net a -> Net a
 c @ ( Net n _ ) |> d @ ( Net m _ ) = Net (n+m-1) e'
   where e' f l = let (a0, c0) = splitAt n l
@@ -277,7 +277,7 @@ sklansky n = Net n (net' n)
                          (t1, t2) = splitAt (n - (n `div` 2) - 1) s1
                      in t1 ++ f (t2 ++ s2)
 
--- | Sklansky construction (Alternative)
+-- | Sklansky construction (alternative)
 --
 -- If the width @n@ is odd, the middle wire is put to the right.
 sklansky' :: Int {- ^ width -} -> Net a
