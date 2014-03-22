@@ -1,4 +1,5 @@
 -- Author: Li-yao Xia, github.com/Syrak
+-- Haddock documentation
 
 {- |
    \"A new approach to the design of optimal parallel prefix circuits\" [1],
@@ -56,6 +57,8 @@ module WSO (
   , slice00
   , t1Tree
   , b1Tree
+
+  -- *** Fanout f
 
   -- * Helper functions
   , partition'
