@@ -20,6 +20,7 @@ module WSO (
   , ($-)
   , (|>)
   , stack
+  , (|||)
 
   -- * Some statistics
   , printCheck
@@ -35,7 +36,7 @@ module WSO (
   -- ** Serial
   , serial
 
-  -- ** Slkansky
+  -- ** Sklansky
   , sklansky
   , sklansky'
 
@@ -43,8 +44,8 @@ module WSO (
   -- *** Fanout 2
   , slices2
   , brentKung
-  , slice2
 
+  , slice2
   , tTree
   , bTree
 
@@ -115,16 +116,27 @@ opFan o (x : xs) = x : [x `o` x' | x' <- xs]
 -- | Network composition, by plugging the last output of
 --   the one network as the first input of the other network
 (|>) :: Net a -> Net a -> Net a
-c @ ( Net n _ ) |> d @ ( Net m _ ) = Net (n+m-1) z
-  where z f l = let (a0, c0) = splitAt n l
-                    (a, b') = splitAt (n-1) $ c $- f $ a0
-                    b = d $- f $ (b' ++ c0)
+c @ ( Net n _ ) |> d @ ( Net m _ ) = Net (n+m-1) e'
+  where e' f l = let (a0, c0) = splitAt n l
+                     (a, b') = splitAt (n-1) $ c $- f $ a0
+                     b = d $- f $ (b' ++ c0)
                 in a ++ b
 
--- | Plug the output of the second network into the input of the first one
+-- | Juxtapose two networks
+(|||) :: Net a -> Net a -> Net a
+c @ ( Net n _ ) ||| d @ ( Net m _ ) = Net (n+m) e'
+  where e' f l = let (a0, a1) = splitAt n l
+                     b0       = c $- f $ a0
+                     b1       = d $- f $ a1
+                 in b0 ++ b1
+
+-- | Plug the output of the first network into the input of the second one
+--   They have to be of the same length !
 stack :: Net a -> Net a -> Net a
-stack c @ ( Net n net1 ) d @ ( Net _ net2 ) = Net n net'
-  where net' f = (c $- f) . (d $- f)
+stack c @ ( Net n _ ) d @ ( Net m _ ) =
+    if n == m then Net n net'
+              else error $ "Stacking " ++ show n ++ " on " ++ show m
+  where net' f = (d $- f) . (c $- f)
 
 
 -- * Some statistics
@@ -248,7 +260,7 @@ serial n = Net
 
 checkSerial = printCheck $ serial 10
 
--- ** Slkansky
+-- ** Sklansky
 
 -- | Sklansky construction
 --
@@ -288,6 +300,8 @@ slices2 d = foldl1 (|>) [slice2 $ min k (d-k-1) | k <- [0..d-1]]
 -- | Brent-Kung construction (using slices)
 brentKung :: Int {- ^ depth -} -> Net a
 brentKung d = foldl1 (|>) [slice2 $ min k (d-k-1) | k <- [0..d `div` 2]]
+
+--
 
 -- Combining /Top trees/ (Figure 6, left)
 -- (x) denotes multiple wires
@@ -341,7 +355,7 @@ combineB b b' = Net (n+m) net'
                        d1         = b' $- f $ (c2 : c3)
                    in d0 ++ d1
 
--- Combine T and B trees to create a /WSO1/ network
+-- Combine T and B trees to create a /WSO1/ network (Figure 5)
 stackWSO1 :: Net a -> Net a -> Net a
 stackWSO1 tT bT = Net (n+1) net'
   where n = width bT -- == width tT
@@ -366,13 +380,14 @@ bTree k = combineB b b
   where b = bTree (k-1)
 
 -- | Slice with fanout 2 and depth @2*k+1@
-slice2 :: Int {- ^ depth of B and T -} -> Net a
+slice2 :: Int {- ^ @k@: depth of B and T -} -> Net a
 slice2 k = stackWSO1 (tTree k) (bTree k)
 
 -- *** Any fanout
 
 -- | Net whose first fan can be extended with new wires on the right
---   (so that they are combined with the first wire, and put in the second elt.)
+--   (so that they are combined with the first wire,
+--   and returned as the second element.)
 data OpenNet a = OpenNet
   { widthON :: Int
   ,   netON :: Fan a -> [a] -> ([a], [a])
@@ -389,8 +404,11 @@ closeNet ( OpenNet n oNet ) = Net n $ (fst .) . oNet
 -- | @ b1Tree t b @
 --
 --   B1 tree with depth @<= b@ matching @ t1Tree t b @
-b1Tree :: Int  -> Int  -> Net a
-b1Tree t b = closeNet $ b1Trees !! t !! b
+--
+--   An additional last wire is added as well (as part of the first fan)
+b1Tree :: Int -> Int -> Net a
+b1Tree t b = Net (n+1) $ (uncurry (++) .) . net'
+  where OpenNet n net' = b1Trees !! t !! b
 
 -- Memoization strategy
 b1Trees :: [[OpenNet a]]
@@ -439,7 +457,11 @@ t1Tree' t b = Net (n+m) net'
 -- | @ slice00 t b @
 --
 --   The slice construction resulting from T1 and B1
-slice00 t b = stackWSO1 (t1Tree t b) (b1Tree t b)
+--
+--   An uneven choice of parameters @t@ and @b@ (@ t > b @) produces a wider
+--   circuit than @ slice2 (t+b) `div` 2 @ by exploiting the absence of
+--   restriction on fanout.
+slice00 t b = stack (singleWire ||| t1Tree t b) (b1Tree t b)
 
 --
 
