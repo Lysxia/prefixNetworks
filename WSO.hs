@@ -102,29 +102,29 @@ opFan o (x : xs) = x : [x `o` x' | x' <- xs]
    To be combined with @($)@ to form a 'ternary' operator:
 
    @
-       c $- f $ l
+       c $- f $ x
    @
 
    Enforce the width restriction.
 
    If the list argument does not have the right length, fail.
 
-   Otherwise return @net c f l@, that is to say: substitute
-   the argument fan @f@ in @c@ and evaluate the circuit with @l@ as input.
+   Otherwise return @net c f x@, that is to say: substitute
+   the argument fan @f@ in @c@ and evaluate the circuit with @x@ as input.
  -}
 ($-) :: Net a -> Fan a -> [a] -> [a]
-($-) c f l = net c f $ l `with_length` width c
-  where l `with_length` n =
-          if length l == n
-            then l
+($-) c f x = net c f $ x `with_length` width c
+  where x `with_length` n =
+          if length x == n
+            then x
             else error $ "Expected length " ++ show n
-                      ++ ", got " ++ show (length l)
+                      ++ ", got " ++ show (length x)
 
 -- | Network composition, by plugging the last output of
 --   one network as the first input of the other network
 (|>) :: Net a -> Net a -> Net a
 c @ ( Net n _ ) |> d @ ( Net m _ ) = Net (n+m-1) e'
-  where e' f l = let (x0, x1) = splitAt n l
+  where e' f x = let (x0, x1) = splitAt n x
                      (y0, y1) = splitAt (n-1) $ c $- f $ x0
                      z        = d $- f $ (y1 ++ x1)
                 in y0 ++ z
@@ -132,8 +132,8 @@ c @ ( Net n _ ) |> d @ ( Net m _ ) = Net (n+m-1) e'
 -- | Juxtapose two networks
 (|||) :: Net a -> Net a -> Net a
 c @ ( Net n _ ) ||| d @ ( Net m _ ) = Net (n+m) e'
-  where e' f l = (c $- f $ x0) ++ (d $- f $ x1)
-          where (x0, x1) = splitAt n l
+  where e' f x = (c $- f $ x0) ++ (d $- f $ x1)
+          where (x0, x1) = splitAt n x
 
 -- | Plug the output of the first network into the input of the second one
 --   They must have the same length !
@@ -351,10 +351,10 @@ checkSerial = printCheck $ serial 10
 -- (yields a smaller circuit compared to the following one)
 sklansky :: Int {- ^ width -} -> Net a
 sklansky n = Net n (net' n)
-  where net' 1 _ l = l
-        net' n f l = let (l1, l2) = splitAt (n - (n `div` 2)) l
-                         s1       = net' (n - (n `div` 2)) f l1
-                         s2       = net'      (n `div` 2)  f l2
+  where net' 1 _ x = x
+        net' n f x = let (x1, x2) = splitAt (n - (n `div` 2)) x
+                         s1       = net' (n - (n `div` 2)) f x1
+                         s2       = net'      (n `div` 2)  f x2
                          (t1, t2) = splitAt (n - (n `div` 2) - 1) s1
                      in t1 ++ f (t2 ++ s2)
 
@@ -363,10 +363,10 @@ sklansky n = Net n (net' n)
 -- If the width @n@ is odd, the middle wire is put to the right.
 sklansky' :: Int {- ^ width -} -> Net a
 sklansky' n = Net n (net' n)
-  where net' 1 _ l = l
-        net' n f l = let (l1, l2) = splitAt (n `div` 2) l
-                         s1       = net'      (n `div` 2)  f l1
-                         s2       = net' (n - (n `div` 2)) f l2
+  where net' 1 _ x = x
+        net' n f x = let (x1, x2) = splitAt (n `div` 2) x
+                         s1       = net'      (n `div` 2)  f x1
+                         s2       = net' (n - (n `div` 2)) f x2
                          (t1, t2) = splitAt ((n `div` 2) - 1) s1
                      in t1 ++ f (t2 ++ s2)
 
@@ -389,66 +389,62 @@ brentKung d = foldl1 (|>) [slice2 $ min k (d-k-1) | k <- [0 .. d `div` 2]]
 {- Combining /Top trees/ (Figure 6, left)
    (x) denotes multiple wires
 
-     (a0)   ++  (a1)
+     (x0)   ++  (x1)
     | .. |     | .. |
     | T  |     | T' |
     | .. |     | .. |
-    (b0) b1'   (b2) b3'
+    (y0) y1'   (y2) y3'
     | .. |     | .. |
     | .. +-----|-..-o
     | .. |     | .. |
-    | .. b1    | .. b3
+    | .. y1    | .. y3
     | .. |     | .. |
  -}
 combineT :: Net a -> Net a -> Net a
 combineT t t' = Net (n+m) net'
   where n = width t
         m = width t'
-        net' f l = let (a0, a1)   = splitAt n l
-                       b0'        = t  $- f $ a0
-                       b2'        = t' $- f $ a1
-                       (b0, b1')  = splitAt (n-1) b0'
-                       (b2, b3')  = splitAt (m-1) b2'
-                       [b1, b3]   = f (b1' ++ b3') -- one element lists
-                   in b0 ++ [b1] ++ b2 ++ [b3]
+        net' f x = let (x0, x1)   = splitAt n x
+                       y0'        = t  $- f $ x0
+                       y2'        = t' $- f $ x1
+                       (y0, y1')  = splitAt (n-1) y0'
+                       (y2, y3')  = splitAt (m-1) y2'
+                       [y1, y3]   = f (y1' ++ y3') -- one element lists
+                   in y0 ++ [y1] ++ y2 ++ [y3]
 
 {- Combining /Bottom trees/
 
-    ( c0_)  ++  ( c1_)
-    c0'  (c1)   c2'  (c3)
+    ( z0_)  ++  ( z1_)
+    z0'  (z1)   z2'  (z3)
     | .. |      | .. |
     +-..-|------o .. |
     | .. |      | .. |
-    c0.. |      c2.. |
+    z0.. |      z2.. |
     | .. |      | .. |
     | B  |      | B' |
     | .. |      | .. |
-     (d0)        (d1)
+     (w0)        (w1)
     | .. |      | .. |
  -}
 combineB :: Net a -> Net a -> Net a
 combineB b b' = Net (n+m) net'
   where n = width b
         m = width b'
-        net' f l = let (c0_, c2_) = splitAt n l
-                       c0' : c1   = c0_
-                       c2' : c3   = c2_
-                       [c0, c2]   = f [c0', c2']
-                       d0         = b  $- f $ (c0 : c1)
-                       d1         = b' $- f $ (c2 : c3)
-                   in d0 ++ d1
+        net' f x = let (z0_, z2_) = splitAt n x
+                       z0' : z1   = z0_
+                       z2' : z3   = z2_
+                       [z0, z2]   = f [z0', z2']
+                    in (b  $- f $ (z0 : z1)) ++ (b' $- f $ (z2 : z3))
 
 -- Combine T and B trees to create a /WSO1/ network (Figure 5)
 stackWSO1 :: Net a -> Net a -> Net a
 stackWSO1 tT bT = Net (n+1) net'
   where n = width bT -- == width tT
-        net' f (a0 : a1) =
-            let b1'      = tT $- f $ a1
-                (b1, b2) = splitAt (n-1) b1'
-                [c0, c2] = f (a0 : b2) -- b2 one element
-                d0       = bT $- f $ (c0 : b1)
-             -- d1       = c2
-            in d0 ++ [c2]
+        net' f (x0 : x1) =
+            let y1'      = tT $- f $ x1
+                (y1, y2) = splitAt (n-1) y1'
+                [z0, z2] = f (x0 : y2) -- y2 one element
+                in (bT $- f $ (z0 : y1)) ++ [z2]
 
 -- | T tree
 tTree :: Int {- ^ depth -} -> Net a
@@ -520,11 +516,11 @@ b1TreeMem t b = OpenNet (n+m) net'
         right = treeLine !! (b-1)   -- B1(t-1, b-1)
         n = widthON left
         m = widthON right
-        net' f l = let (l0, l1') = splitAt (n+1) l
-                       (l1, l2)  = splitAt (m-1) l1'
-                       (k0, k1' : k2) = netON left f (l0 ++ l2)
-                       (k1,       []) = netON right f (k1' : l1)
-                   in (k0 ++ k1, k2)
+        net' f x = let (x0, x1') = splitAt (n+1) x
+                       (x1, x2)  = splitAt (m-1) x1'
+                       (y0, y1' : y2) = netON left f (x0 ++ x2)
+                       (y1,       []) = netON right f (y1' : x1)
+                   in (y0 ++ y1, y2)
 
 -- | @ t1Tree t b @
 --
@@ -543,13 +539,13 @@ t1TreeMem t b = Net (n+m) net'
         right = treeLine !! (b-1)   -- T1(t-1, b-1)
         n = width  left
         m = width right
-        net' f l = let (l0, l1) = splitAt n l
-                       k0'      = net  left f l0
-                       k2'      = net right f l1
-                       (k0, k1) = splitAt (n-1) k0'
-                       (k2, k3) = splitAt (m-1) k2'
-                       [j1, j3] = f (k1 ++ k3)
-                   in k0 ++ [j1] ++ k2 ++ [j3]
+        net' f x = let (x0, x1) = splitAt n x
+                       y0'      = net  left f x0
+                       y2'      = net right f x1
+                       (y0, y1) = splitAt (n-1) y0'
+                       (y2, y3) = splitAt (m-1) y2'
+                       [z1, z3] = f (y1 ++ y3)
+                   in y0 ++ [z1] ++ y2 ++ [z3]
 
 -- | @ slice00 t b @
 --
@@ -580,7 +576,7 @@ bRootTrees :: [Net a] -> Net a
 bRootTrees nets = Net n net'
   where ns = map width nets
         n  = sum ns
-        net' f l = let s   = partition' ns l
+        net' f x = let s   = partition' ns x
                        fhs = f $ map head s
                        s'  = zipWith (\x y -> x : tail y) fhs s
                        out = zipWith (net `flip` f) nets s'
@@ -592,19 +588,19 @@ tRootTrees :: [Net a] -> Net a
 tRootTrees nets = Net n net'
   where ns = map width nets
         n  = sum ns
-        net' f (h : t) =
-            let s      = partition' ns t
+        net' f (x : xs) =
+            let s      = partition' ns xs
                 s'     = zipWith (net `flip` f) nets s
-                x : xs = map last s'
-                (acc, fxs) = mapAccumL
+                y : ys = map last s'
+                (acc, fys) = mapAccumL
                                (\ac v -> let [w, acc] = f [ac, v] in (acc, w))
-                               x xs
-                out    = zipWith (\x y -> init x ++ [y]) s' (fxs ++ [acc])
-            in h : concat out
+                               y ys
+                out    = zipWith (\yi y -> init yi ++ [y]) s' (fys ++ [acc])
+            in x : concat out
 
 -- | @ bTreef f t b @
 --
---   Slice construction with fanout f
+--   Slice construction with fanout @f@
 --
 --   The first fan is extended to include the waist
 bTreef' :: Int -> Int -> Int -> Net a
