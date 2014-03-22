@@ -124,16 +124,16 @@ opFan o (x : xs) = x : [x `o` x' | x' <- xs]
 --   one network as the first input of the other network
 (|>) :: Net a -> Net a -> Net a
 c @ ( Net n _ ) |> d @ ( Net m _ ) = Net (n+m-1) e'
-  where e' f l = let (a0, a1) = splitAt n l
-                     (b0, b1) = splitAt (n-1) $ c $- f $ a0
-                     c        = d $- f $ (b1 ++ a1)
-                in b0 ++ c
+  where e' f l = let (x0, x1) = splitAt n l
+                     (y0, y1) = splitAt (n-1) $ c $- f $ x0
+                     z        = d $- f $ (y1 ++ x1)
+                in y0 ++ z
 
 -- | Juxtapose two networks
 (|||) :: Net a -> Net a -> Net a
 c @ ( Net n _ ) ||| d @ ( Net m _ ) = Net (n+m) e'
-  where e' f l = (c $- f $ a0) ++ (d $- f $ a1)
-          where (a0, a1) = splitAt n l
+  where e' f l = (c $- f $ x0) ++ (d $- f $ x1)
+          where (x0, x1) = splitAt n l
 
 -- | Plug the output of the first network into the input of the second one
 --   They must have the same length !
@@ -203,14 +203,17 @@ printNet = printLines . draw
 --   (wide circuits get messed up by terminal line wrap horizontally)
 vPrintNet :: Net FanPos -> IO ()
 vPrintNet = printLines . map (map swapChar) . transpose . draw2
-  where swapChar c | c == '-'  = '|'
-                   | c == '|'  = '-'
-                   | otherwise = c
+  where swapChar '-' = '|'
+        swapChar '|' = '-'
+        swapChar  x  = x
 
 --
 
+updateFans :: ([(Int, [Int])] -> [(Int, [Int])]) -> FanPos -> FanPos
+updateFans f fp = fp { fans = f $ fans fp }
+
 dispFan :: [FanPos] -> [FanPos]
-dispFan [w] = [w]
+dispFan   [w]                         = [w]
 dispFan wires @ (FanPos i _ fs : fps) = fp' : fps'
   where d = maximum $ map curDepth $ wires
         f = map wireNum fps
@@ -221,7 +224,7 @@ dispZero :: Int -> [FanPos]
 dispZero n = [FanPos i 0 [] | i <- [0 .. n-1]]
 
 bottomUp :: [FanPos] -> [FanPos]
-bottomUp = map (\fp -> fp { fans = reverse $ fans fp })
+bottomUp = map $ updateFans reverse
 
 replicate' :: Int -> [a] -> [a]
 replicate' = (concat .) . replicate
@@ -252,10 +255,10 @@ layout fps = layout' 0 fps [] []
         scan _ _   [] = ([], []) -- @ (lo, fps') @
         scan d i _fps @ (fp : fps)
           | null (fans fp) = scan d (i+1) fps
-          |        d == d' = consPair ((j, f), fp { fans = fs })
+          |        d == d' = consPair ((j, f), updateFans tail fp)
                                     $ scan d (last f + 1) fps
           |      otherwise = consSnd fp $ scan d (i+1) fps
-          where FanPos j _ ((d', f) : fs) = fp
+          where FanPos j _ ((d', f) : _) = fp
                 consPair (x, y) (xs, ys) = (x : xs, y : ys)
                 consSnd      y  (xs, ys) = (    xs, y : ys)
 
@@ -283,23 +286,32 @@ drawLine2 n = drawLine' 0
                           ++ "o"
                           ++ drawFan (j+1) js
 
+-- The @Int@ type parameter is the width of the circuit
+drawWith :: (Int -> [(Int, [Int])] -> String)
+                              {- ^ draw a line of fans -}
+         -> (Int -> String)   {- ^ empty line -}
+         -> (Int -> [String]) {- ^ header (e.g. with wire indices) -}
+         -> Net FanPos -> [String]
+drawWith drawLine _space header c = header n ++ [space] ++ lines
+  where lo    = layout $ bottomUp $ c $- dispFan $ dispZero n
+        lines = (++ [space]) . map (drawLine n) =<< lo
+        space = _space n
+        n     = width c
+
+-- Left associative application to reduce the number of parenthesis
+-- A syntactic trick dependent on personal taste
+infixl 0 $@
+($@) = ($)
+
 draw :: Net FanPos -> [String]
-draw c = map (intersperse ' ') (indices n)
-      ++ [space]
-      ++ intercalate [space] lines
-  where disp = c $- dispFan $ dispZero n
-        lines = map (map $ drawLine n) $ layout $ bottomUp disp
-        space = intersperse ' ' $ replicate n '|'
-        n = width c
+draw = drawWith $@ drawLine
+                $@ intersperse ' ' . flip replicate '|'
+                $@ map (intersperse ' ') . indices
 
 draw2 :: Net FanPos -> [String]
-draw2 c = indices n
-         ++ [space]
-         ++ intercalate [space] lines
-  where disp = c $- dispFan $ dispZero n
-        lines = map (map $ drawLine2 n) $ layout $ bottomUp disp
-        space = replicate n '|'
-        n = width c
+draw2 = drawWith $@ drawLine2
+                 $@ flip replicate '|'
+                 $@ indices
 
 indices n = indices' n [] $ map (intToDigit . (`mod` 10)) [0 ..]
   where indices' 0 acc _ = acc
