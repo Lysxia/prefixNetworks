@@ -315,14 +315,13 @@ draw2 = drawWith $@ drawLine2
 
 indices n = indices' n [] $ map (intToDigit . (`mod` 10)) [0 ..]
   where indices' 0 acc _ = acc
-        indices' m acc l = indices' (m `div` 10)
-                                    (take n l : acc)
-                                    (concat $ map (replicate 10) l)
+        indices' m acc l = indices' $@ m `div` 10
+                                    $@ take n l : acc
+                                    $@ concat (map (replicate 10) l)
 
 printLines :: [String] -> IO ()
-printLines = foldr
-               ((>>) . putStrLn)
-             $ return ()
+printLines = foldr $@ (>>) . putStrLn
+                   $@ return ()
 
 --
  
@@ -440,11 +439,10 @@ combineB b b' = Net (n+m) net'
 stackWSO1 :: Net a -> Net a -> Net a
 stackWSO1 tT bT = Net (n+1) net'
   where n = width bT -- == width tT
-        net' f (x0 : x1) =
-            let y1'      = tT $- f $ x1
-                (y1, y2) = splitAt (n-1) y1'
-                [z0, z2] = f (x0 : y2) -- y2 one element
-                in (bT $- f $ (z0 : y1)) ++ [z2]
+        net' f (x0 : x1) = let y1'      = tT $- f $ x1
+                               (y1, y2) = splitAt (n-1) y1'
+                               [z0, z2] = f (x0 : y2) -- y2 one element
+                           in (bT $- f $ (z0 : y1)) ++ [z2]
 
 -- | T tree
 tTree :: Int {- ^ depth -} -> Net a
@@ -460,7 +458,8 @@ bTree k = combineB b b
 
 -- | Slice with fanout 2 and depth @2*k+1@
 slice2 :: Int {- ^ @k@: depth of B and T -} -> Net a
-slice2 k = stackWSO1 (tTree k) (bTree k)
+slice2 k = stackWSO1 $@ tTree k
+                     $@ bTree k
 
 -- *** Any fanout
 
@@ -554,7 +553,8 @@ t1TreeMem t b = Net (n+m) net'
 --   An uneven choice of parameters @t@ and @b@ (@ t > b @) produces a wider
 --   circuit than @ slice2 $ (t+b) \`div\` 2 @ by exploiting the absence of
 --   restriction on fanout.
-slice00 t b = stack (singleWire ||| t1Tree t b) (b1TreeWaist t b)
+slice00 t b = stack $@ singleWire ||| t1Tree t b
+                    $@ b1TreeWaist t b
 
 --
 
