@@ -35,6 +35,10 @@ module WSO (
   -- ** Serial
   , serial
 
+  -- ** Slkansky
+  , sklansky
+  , sklansky'
+
   -- ** Slices
   -- *** Fanout 2
   , slices2
@@ -49,12 +53,14 @@ module WSO (
   , t1Tree
   , b1Tree
 
-
   -- * Helper functions
   , partition'
   ) where
 
 import Data.List
+
+
+-- * Net type
 
 type Fan a = [a] -> [a]
 
@@ -72,6 +78,17 @@ data Net a = Net
 
    As in [2], networks are parameterized by a \"fan\" component.
  -}
+
+-- | The only width 1 prefix network
+singleWire :: Net a
+singleWire = Net { width = 1, net = const id }
+
+-- | Fan associated to a binary operator
+opFan :: (a -> a -> a) -> [a] -> [a]
+opFan o (x : xs) = x : [x `o` x' | x' <- xs]
+
+
+-- ** Operations
 
 {- |
    To be combined with @($)@ to form a 'ternary' operator:
@@ -109,15 +126,8 @@ stack :: Net a -> Net a -> Net a
 stack c @ ( Net n net1 ) d @ ( Net _ net2 ) = Net n net'
   where net' f = (c $- f) . (d $- f)
 
--- | The only width 1 prefix network
-singleWire :: Net a
-singleWire = Net { width = 1, net = const id }
 
--- | Fan associated to a binary operator
-opFan :: (a -> a -> a) -> [a] -> [a]
-opFan o (x : xs) = x : [x `o` x' | x' <- xs]
-
---
+-- * Some statistics
 
 -- | Visual verification of networks using list concatenation
 --   (helps debugging networks, prefix or not)
@@ -157,7 +167,8 @@ foFan xs = replicate n fo
   where n = length xs
         fo = maximum (n : xs)
 
---
+
+-- * \"Pretty\" printing
 
 -- | The type used to collect fan positions
 data FanPos = FanPos
@@ -221,7 +232,9 @@ draw c = intercalate "\n" $ intersperse (replicate' n " |") lines
         lines = map (drawLine n) $ layout disp
         n = width c
 
---
+-- * Prefix networks
+
+-- ** Serial
 
 -- | Serial prefix network
 serial :: Int {- ^ width @n@ -} -> Net a
@@ -235,7 +248,38 @@ serial n = Net
 
 checkSerial = printCheck $ serial 10
 
+-- ** Slkansky
+
+-- | Sklansky construction
 --
+-- If the width @n@ is odd,
+-- the middle wire is put to the left (yields a smaller circuit)
+sklansky :: Int {- ^ width -} -> Net a
+sklansky n = Net n (net' n)
+  where net' 1 _ l = l
+        net' n f l = let (l1, l2) = splitAt (n - (n `div` 2)) l
+                         s1       = net' (n - (n `div` 2)) f l1
+                         s2       = net'      (n `div` 2)  f l2
+                         (t1, t2) = splitAt (n - (n `div` 2) - 1) s1
+                     in t1 ++ f (t2 ++ s2)
+
+-- | Sklansky construction (Alternative)
+--
+-- If the width @n@ is odd, the middle wire is put to the right.
+sklansky' :: Int {- ^ width -} -> Net a
+sklansky' n = Net n (net' n)
+  where net' 1 _ l = l
+        net' n f l = let (l1, l2) = splitAt (n `div` 2) l
+                         s1       = net'      (n `div` 2)  f l1
+                         s2       = net' (n - (n `div` 2)) f l2
+                         (t1, t2) = splitAt ((n `div` 2) - 1) s1
+                     in t1 ++ f (t2 ++ s2)
+
+checkSklansky = printCheck $ sklansky 20
+
+-- ** Slices
+
+-- *** Fanout 2
 
 -- | /DSO/ prefix network
 slices2 :: Int {- ^ depth -} -> Net a
@@ -325,36 +369,7 @@ bTree k = combineB b b
 slice2 :: Int {- ^ depth of B and T -} -> Net a
 slice2 k = stackWSO1 (tTree k) (bTree k)
 
---
-
--- | Sklansky construction
---
--- If the width @n@ is odd,
--- the middle wire is put to the left (yields a smaller circuit)
-sklansky :: Int {- ^ width -} -> Net a
-sklansky n = Net n (net' n)
-  where net' 1 _ l = l
-        net' n f l = let (l1, l2) = splitAt (n - (n `div` 2)) l
-                         s1       = net' (n - (n `div` 2)) f l1
-                         s2       = net'      (n `div` 2)  f l2
-                         (t1, t2) = splitAt (n - (n `div` 2) - 1) s1
-                     in t1 ++ f (t2 ++ s2)
-
--- | Sklansky construction (Alternative)
---
--- If the width @n@ is odd, the middle wire is put to the right.
-sklansky' :: Int {- ^ width -} -> Net a
-sklansky' n = Net n (net' n)
-  where net' 1 _ l = l
-        net' n f l = let (l1, l2) = splitAt (n `div` 2) l
-                         s1       = net'      (n `div` 2)  f l1
-                         s2       = net' (n - (n `div` 2)) f l2
-                         (t1, t2) = splitAt ((n `div` 2) - 1) s1
-                     in t1 ++ f (t2 ++ s2)
-
-checkSklansky = printCheck $ sklansky 20
-
---
+-- *** Any fanout
 
 -- | Net whose first fan can be extended with new wires on the right
 --   (so that they are combined with the first wire, and put in the second elt.)
