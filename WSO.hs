@@ -578,9 +578,10 @@ bRootTrees nets = Net n net'
         n  = sum ns
         net' f x = let s   = partition' ns x
                        fhs = f $ map head s
-                       s'  = zipWith (\x y -> x : tail y) fhs s
+                       s'  = zipWith as_head_of fhs s
                        out = zipWith (net `flip` f) nets s'
                    in concat out
+        x `as_head_of` (_ : ys) = x : ys
 
 -- Add "output" fans which cover the last wire of every sub-network
 
@@ -595,8 +596,9 @@ tRootTrees nets = Net n net'
                 (acc, fys) = mapAccumL
                                (\ac v -> let [w, acc] = f [ac, v] in (acc, w))
                                y ys
-                out    = zipWith (\yi y -> init yi ++ [y]) s' (fys ++ [acc])
+                out    = zipWith with_last s' (fys ++ [acc])
             in x : concat out
+        yi `with_last` y = init yi ++ [y]
 
 -- | @ bTreef f t b @
 --
