@@ -299,6 +299,7 @@ drawWith drawLine _space header c = header n ++ [space] ++ lines
         n     = width c
 
 -- | Left associative application to help reduce the number of brackets
+--
 --   A syntactic trick dependent on personal taste
 infixl 0 $@
 ($@) = ($)
