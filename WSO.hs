@@ -340,8 +340,6 @@ serial n = Net
         net' f (x : y : xs) = x' : (net' f $ y' : xs)
           where [x', y'] = f [x, y]
 
-checkSerial = printCheck $ serial 10
-
 -- ** Sklansky
 
 -- | Sklansky construction
