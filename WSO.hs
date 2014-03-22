@@ -24,7 +24,7 @@ module WSO (
   , stack
   , (|||)
 
-  -- * Some statistics
+  -- * Network information
   , size
   , depth
   , fanout
@@ -144,7 +144,7 @@ stack c @ ( Net n _ ) d @ ( Net m _ ) =
   where net' f = (d $- f) . (c $- f)
 
 
--- * Some statistics
+-- * Network information
 
 -- | Visual verification of networks using list concatenation
 --   (helps debugging networks, prefix or not)
