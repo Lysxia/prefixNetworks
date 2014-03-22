@@ -35,6 +35,7 @@ module WSO (
   -- * \"Pretty\" printing
   , FanPos
   , printNet
+  , vPrintNet
 
   -- * Prefix networks
   -- ** Serial
@@ -65,7 +66,7 @@ module WSO (
   ) where
 
 import Data.List
-
+import Data.Char
 
 -- * Net type
 
@@ -198,7 +199,15 @@ data FanPos = FanPos
 
 -- | Print an ASCII drawing of the network
 printNet :: Net FanPos -> IO ()
-printNet = putStrLn . draw
+printNet = printLines . draw
+
+-- | Print circuit vertically
+--   (wide circuits get messed up by terminal line wrap horizontally)
+vPrintNet :: Net FanPos -> IO ()
+vPrintNet = printLines . map (map swapChar) . transpose . draw2
+  where swapChar c | c == '-'  = '|'
+                   | c == '|'  = '-'
+                   | otherwise = c
 
 dispFan :: [FanPos] -> [FanPos]
 dispFan [w] = [w]
@@ -209,7 +218,7 @@ dispFan wires @ (FanPos i _ fs : fps) = fp' : fps'
         fps' = [fp_ { curDepth = d + 1 } | fp_ <- fps]
 
 dispZero :: Int -> [FanPos]
-dispZero n = [FanPos i 0 [] | i <- [0..n-1]]
+dispZero n = [FanPos i 0 [] | i <- [0 .. n-1]]
 
 bottomUp :: [FanPos] -> [FanPos]
 bottomUp = map (\fp -> fp { fans = reverse $ fans fp })
@@ -217,39 +226,91 @@ bottomUp = map (\fp -> fp { fans = reverse $ fans fp })
 replicate' :: Int -> [a] -> [a]
 replicate' = (concat .) . replicate
 
-layout :: [FanPos] -> [[(Int, [Int])]]
-layout fps = layout' 0 fps
-  where layout' _  [] = []
-        layout' d fps =
-          if null ly
-            then      layout' (d+1) fps'
-            else ly : layout'     d fps'
-          where (ly, fps') = scan d 0 fps
-        scan _ _        [] = (         [], [])
+intersperse' k x = aux
+  where aux        [] = []
+        aux       [y] = [y]
+        aux (y1 : ys) = y1 : kx ++ aux ys
+        kx            = replicate k x
+
+-- Gather fans in lines a fan is given by (firstWire, [remaining])
+-- Overlapping fans are split over several lines
+-- Greedy:
+--   Take the first fan that fits,
+--   repeat until end of line (adding fans to one line),
+--   repeat until no more fans (creating new lines).
+-- Is that optimal?
+layout :: [FanPos] -> [[[(Int, [Int])]]]
+layout fps = layout' 0 fps [] []
+  where layout' _  [] curLine lines = reverse $ curLine : lines
+        layout' d fps curLine lines =
+          if null lo
+            then layout' (d+1) fps'             [] $ reverse curLine : lines
+            else layout'     d fps' (lo : curLine)                     lines
+          where (lo, fps') = scan d 0 fps
+        -- Take a list of fans @lo@ at depth d from @fps@, leaving @fps'@,
+        -- s.t. the fans in @lo@ don't overlap
+        scan _ _   [] = ([], []) -- @ (lo, fps') @
         scan d i _fps @ (fp : fps)
           | null (fans fp) = scan d (i+1) fps
-          |        d == d' = ((j, f), fp { fans = fs })
-                         |:: scan d (last f + 1) fps
-          |      otherwise = fp >: scan d (i+1) fps
+          |        d == d' = consPair ((j, f), fp { fans = fs })
+                                    $ scan d (last f + 1) fps
+          |      otherwise = consSnd fp $ scan d (i+1) fps
           where FanPos j _ ((d', f) : fs) = fp
-                (x, y) |:: (xs, ys) = (x : xs, y : ys)
-                y       >: (xs, ys) = (    xs, y : ys)
+                consPair (x, y) (xs, ys) = (x : xs, y : ys)
+                consSnd      y  (xs, ys) = (    xs, y : ys)
 
 drawLine :: Int -> [(Int, [Int])] -> String
-drawLine n = drawLine' 0
+drawLine n = tail . drawLine' 0
   where drawLine' i            [] = replicate' (n-i) " |"
         drawLine' i ((j, f) : fs) = replicate' (j-i) " |"
                                  ++ " +"
                                  ++ drawFan (j+1) f
                                  ++ drawLine' (last f + 1) fs
         drawFan i       [] = ""
-        drawFan i (j : js) = replicate' (j-i) "-|" ++ "-o" ++ drawFan (j+1) js
+        drawFan i (j : js) = replicate' (j-i) "-|"
+                          ++ "-o"
+                          ++ drawFan (j+1) js
 
-draw :: Net FanPos -> String
-draw c = intercalate "\n" $ intersperse (replicate' n " |") lines
-  where disp = bottomUp $ c $- dispFan $ dispZero n
-        lines = map (drawLine n) $ layout disp
+drawLine2 :: Int -> [(Int, [Int])] -> String
+drawLine2 n = drawLine' 0
+  where drawLine' i            [] = replicate (n-i) '|'
+        drawLine' i ((j, f) : fs) = replicate (j-i) '|'
+                                 ++ "+"
+                                 ++ drawFan (j+1) f
+                                 ++ drawLine' (last f + 1) fs
+        drawFan i       [] = ""
+        drawFan i (j : js) = replicate (j-i) '-'
+                          ++ "o"
+                          ++ drawFan (j+1) js
+
+draw :: Net FanPos -> [String]
+draw c = map (intersperse ' ') (indices n)
+      ++ [space]
+      ++ intercalate [space] lines
+  where disp = c $- dispFan $ dispZero n
+        lines = map (map $ drawLine n) $ layout $ bottomUp disp
+        space = intersperse ' ' $ replicate n '|'
         n = width c
+
+draw2 :: Net FanPos -> [String]
+draw2 c = indices n
+         ++ [space]
+         ++ intercalate [space] lines
+  where disp = c $- dispFan $ dispZero n
+        lines = map (map $ drawLine2 n) $ layout $ bottomUp disp
+        space = replicate n '|'
+        n = width c
+
+indices n = indices' n [] $ map (intToDigit . (`mod` 10)) [0 ..]
+  where indices' 0 acc _ = acc
+        indices' m acc l = indices' (m `div` 10)
+                                    (take n l : acc)
+                                    (concat $ map (replicate 10) l)
+
+printLines :: [String] -> IO ()
+printLines = foldr
+               ((>>) . putStrLn)
+             $ return ()
 
 -- * Prefix networks
 
@@ -303,11 +364,11 @@ checkSklansky = printCheck $ sklansky 20
 
 -- | /DSO/ prefix network
 slices2 :: Int {- ^ depth -} -> Net a
-slices2 d = foldl1 (|>) [slice2 $ min k (d-k-1) | k <- [0..d-1]]
+slices2 d = foldl1 (|>) [slice2 $ min k (d-k-1) | k <- [0 .. d-1]]
 
 -- | Brent-Kung construction (using slices)
 brentKung :: Int {- ^ depth -} -> Net a
-brentKung d = foldl1 (|>) [slice2 $ min k (d-k-1) | k <- [0..d `div` 2]]
+brentKung d = foldl1 (|>) [slice2 $ min k (d-k-1) | k <- [0 .. d `div` 2]]
 
 --
 
@@ -393,7 +454,9 @@ slice2 k = stackWSO1 (tTree k) (bTree k)
 
 -- *** Any fanout
 
--- | Net whose first fan can be extended with new wires on the right
+-- | A more general representation of B1 and Bf' trees
+--
+--   Net whose first fan can be extended with new wires on the right
 --   (so that they are combined with the first wire,
 --   and returned as the second element.)
 data OpenNet a = OpenNet
@@ -406,26 +469,38 @@ oSingleWire = OpenNet 1 oNet
   where oNet f x = ([fx], fxs)
           where fx : fxs = f x
 
+-- | Convert to a proper @Net@
 closeNet :: OpenNet a -> Net a
-closeNet ( OpenNet n oNet ) = Net n $ (fst .) . oNet
+closeNet ( OpenNet n net' ) = Net n net''
+  where net'' = (fst .) . net'
+
+-- | An additional last wire is added as well (as part of the first fan),
+--   so that the waist is included in the returned tree.
+withWaist :: OpenNet a -> Net a
+withWaist ( OpenNet n net' ) = Net (n+1) net''
+  where net'' = (uncurry (++) .) . net'
 
 -- | @ b1Tree t b @
 --
 --   B1 tree with depth @<= b@ matching @ t1Tree t b @
 --
---   An additional last wire is added as well (as part of the first fan)
 b1Tree :: Int -> Int -> Net a
-b1Tree t b = Net (n+1) $ (uncurry (++) .) . net'
-  where OpenNet n net' = b1Trees !! t !! b
+b1Tree t b = closeNet $ b1Trees !! t !! b
+
+-- | @ b1TreeWaist t b @
+--
+--   The first fan is extended to include the waist.
+b1TreeWaist :: Int -> Int -> Net a
+b1TreeWaist t b = withWaist $ b1Trees !! t !! b
 
 -- Memoization strategy
 b1Trees :: [[OpenNet a]]
-b1Trees = [[b1Tree' t b | b <- [0..]] | t <- [0..]]
+b1Trees = [[b1TreeMem t b | b <- [0 ..]] | t <- [0 ..]]
 
-b1Tree' :: Int -> Int -> OpenNet a
-b1Tree' 0 _ = oSingleWire
-b1Tree' _ 0 = oSingleWire
-b1Tree' t b = OpenNet (n+m) net'
+b1TreeMem :: Int -> Int -> OpenNet a
+b1TreeMem 0 _ = oSingleWire
+b1TreeMem _ 0 = oSingleWire
+b1TreeMem t b = OpenNet (n+m) net'
   where treeLine = b1Trees !! (t-1) -- B1(t, b) is built from
         left  = treeLine !! b       -- B1(t-1, b  ) and
         right = treeLine !! (b-1)   -- B1(t-1, b-1)
@@ -444,11 +519,11 @@ t1Tree :: Int -> Int -> Net a
 t1Tree t b = t1Trees !! t !! b
 
 t1Trees :: [[Net a]]
-t1Trees = [[t1Tree' t b | b <- [0..]] | t <- [0..]]
+t1Trees = [[t1TreeMem t b | b <- [0 ..]] | t <- [0 ..]]
 
-t1Tree' 0 _ = singleWire
-t1Tree' _ 0 = singleWire
-t1Tree' t b = Net (n+m) net'
+t1TreeMem 0 _ = singleWire
+t1TreeMem _ 0 = singleWire
+t1TreeMem t b = Net (n+m) net'
   where treeLine = t1Trees !! (t-1) -- T1(t, b) is built from
         left  = treeLine !! b       -- T1(t-1, b  ) and
         right = treeLine !! (b-1)   -- T1(t-1, b-1)
@@ -469,48 +544,71 @@ t1Tree' t b = Net (n+m) net'
 --   An uneven choice of parameters @t@ and @b@ (@ t > b @) produces a wider
 --   circuit than @ slice2 $ (t+b) \`div\` 2 @ by exploiting the absence of
 --   restriction on fanout.
-slice00 t b = stack (singleWire ||| t1Tree t b) (b1Tree t b)
+slice00 t b = stack (singleWire ||| t1Tree t b) (b1TreeWaist t b)
 
 --
 
 -- | @ partition' [p1, ..., pn] l @
 --
---   Partition the second argument into sublists of sizes @p1@, ..., @pn@, @*@.
---
---   The last one corresponds to all remaining elements.
+--   Partition the second argument into sublists of sizes @p1@, ..., @pn@,
+--   discards the remaining elements.
 partition' :: [Int] -> [a] -> [[a]]
-partition'       [] l = [l]
+partition'       [] _ = []
 partition' (p : ps) l = u : partition' ps v
   where (u, v) = splitAt p l
 
 -- *** Fanout f
 
 -- Add a "root" fan which covers
--- the first wire of every sub-network + a new wire
+-- the first wire of every sub-network
 
 bRootTrees :: [Net a] -> Net a
 bRootTrees nets = Net n net'
   where ns = map width nets
-        n  = sum ns + 1
+        n  = sum ns
         net' f l = let s   = partition' ns l
                        fhs = f $ map head s
                        s'  = zipWith (\x y -> x : tail y) fhs s
                        out = zipWith (net `flip` f) nets s'
-                   in concat out ++ last s
+                   in concat out
 
 -- Add "output" fans which cover the last wire of every sub-network
 
 tRootTrees :: [Net a] -> Net a
 tRootTrees nets = Net n net'
   where ns = map width nets
-        n  = 1 + sum ns
+        n  = sum ns
         net' f (h : t) =
             let s      = partition' ns t
                 s'     = zipWith (net `flip` f) nets s
                 x : xs = map last s'
                 (acc, fxs) = mapAccumL
-                               (\x y -> let [w, acc] = f [x, y] in (acc, w))
+                               (\ac v -> let [w, acc] = f [ac, v] in (acc, w))
                                x xs
                 out    = zipWith (\x y -> init x ++ [y]) s' (fxs ++ [acc])
             in h : concat out
+
+-- | @ bTreef f t b @
+--
+--   Slice construction with fanout f
+--
+--   The first fan is extended to include the waist
+bTreef' :: Int -> Int -> Int -> Net a
+bTreef' f b t = bTreesf' !! (f - 2) !! b !! t
+-- Different order of b and t in the implementation!
+
+-- @f@ is offset by 2
+bTreesf' :: [[[Net a]]]
+bTreesf' = [[[bTreefMem' f t b | t <- [0 ..]] | b <- [0 ..]] | f <- [2 ..]]
+
+bTreefMem' :: Int -> Int -> Int -> Net a
+bTreefMem' _ 0 _ = singleWire
+bTreefMem' _ _ 0 = singleWire
+bTreefMem' f t b =
+  if f > t+1 then
+    b1Tree t b
+  else
+    bRootTrees $ b' : b' : bs'
+  where treesf   = bTreesf' !! (f-2) !! (b-1)
+        b' : bs' = take (f-1) $ drop (t-f+1) treesf
 
