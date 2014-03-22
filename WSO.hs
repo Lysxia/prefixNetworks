@@ -269,7 +269,8 @@ checkSerial = printCheck $ serial 10
 -- | Sklansky construction
 --
 -- If the width @n@ is odd,
--- the middle wire is put to the left (yields a smaller circuit)
+-- the middle wire is put to the left
+-- (yields a smaller circuit compared to the following one)
 sklansky :: Int {- ^ width -} -> Net a
 sklansky n = Net n (net' n)
   where net' 1 _ l = l
