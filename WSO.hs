@@ -96,11 +96,11 @@ opFan o (x : xs) = x : [x `o` x' | x' <- xs]
 
 {- |
    To be combined with @($)@ to form a 'ternary' operator:
-  
+
    @
        c $- f $ l
    @
-  
+
    Enforce the width restriction.
 
    If the list argument does not have the right length, fail.
@@ -309,7 +309,7 @@ brentKung d = foldl1 (|>) [slice2 $ min k (d-k-1) | k <- [0..d `div` 2]]
 
 {- Combining /Top trees/ (Figure 6, left)
    (x) denotes multiple wires
-  
+
      (a0)   ++  (a1)
     | .. |     | .. |
     | T  |     | T' |
@@ -334,7 +334,7 @@ combineT t t' = Net (n+m) net'
                    in b0 ++ [b1] ++ b2 ++ [b3]
 
 {- Combining /Bottom trees/
-  
+
     ( c0_)  ++  ( c1_)
     c0'  (c1)   c2'  (c3)
     | .. |      | .. |
