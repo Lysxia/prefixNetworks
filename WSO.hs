@@ -63,6 +63,7 @@ module WSO (
 
   -- * Helper functions
   , partition'
+  , ($@)
   ) where
 
 import Data.List
@@ -298,8 +299,8 @@ drawWith drawLine _space header c = header n ++ [space] ++ lines
         space = _space n
         n     = width c
 
--- Left associative application to reduce the number of parenthesis
--- A syntactic trick dependent on personal taste
+-- | Left associative application to help reduce the number of brackets
+--   A syntactic trick dependent on personal taste
 infixl 0 $@
 ($@) = ($)
 
