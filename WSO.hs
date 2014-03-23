@@ -53,6 +53,7 @@ module WSO (
 
   -- *** Any fanout
   , slice00
+  , slices00
 
   -- *** Fanout @ f >= 3 @
   , slices
