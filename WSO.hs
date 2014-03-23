@@ -59,6 +59,8 @@ module WSO (
   , b1Tree
 
   -- *** Fanout f
+  , tTreef
+  , bTreef
 
   -- * Helper functions
   , partition'
@@ -88,9 +90,13 @@ data Net a = Net
    As in [2], networks are parameterized by a \"fan\" component.
  -}
 
--- | The only width 1 prefix network
+-- | The only width 1 prefix network, does nothing
 singleWire :: Net a
 singleWire = Net { width = 1, net = const id }
+
+-- | One gate
+twoWires :: Net a
+twoWires = Net { width = 2, net = id }
 
 -- | Fan associated to a binary operator
 opFan :: (a -> a -> a) -> [a] -> [a]
@@ -491,8 +497,7 @@ withWaist ( OpenNet n net' ) = Net (n+1) net''
 
 -- | @ b1Tree t b @
 --
---   B1 tree with depth @<= b@ matching @ t1Tree t b @
---
+--   B1 tree with depth @ <= b @ matching @ t1Tree t b @
 b1Tree :: Int -> Int -> Net a
 b1Tree t b = closeNet $ b1Trees !! t !! b
 
@@ -523,7 +528,7 @@ b1TreeMem t b = OpenNet (n+m) net'
 
 -- | @ t1Tree t b @
 --
---   T1 tree with depth @<= t@ matching @ b1Tree t b @
+--   T1 tree with depth @ <= t @ matching @ b1Tree t b @
 t1Tree :: Int -> Int -> Net a
 t1Tree = treeMem singleWire combine
   where left @ ( Net n _ ) `combine` right @ ( Net m _ ) = Net (n+m) net'
@@ -567,6 +572,34 @@ partition' (p : ps) l = u : partition' ps v
 
 -- *** Fanout f
 
+-- | @ slice f t b @
+--   The bound fanout slice(f) construction
+slice :: Int -> Int -> Int -> Net a
+slice f t b = stack $@ singleWire ||| tTreef f t b
+                    $@ bTreef f t b -- Includes the waist
+
+-- | @ tTreef f t b @
+--
+--   T1 tree with max fanout @f@ and depth @ <= t-1 @ matching @ bTree f t b @
+tTreef :: Int -> Int -> Int -> Net a
+tTreef _ 0 _ = singleWire
+tTreef _ _ 0 = singleWire
+tTreef f t b | f > t+1   = t1Tree t b
+             | otherwise = tRootTrees $ tT : tTs
+  where tTs @ (tT : _) = tTreef' f b `map` [t-f+1 .. t-2]
+
+-- | @ bTreef f t b @
+--
+--   B1 tree with max fanout @f@ and depth @ <= b @ matching @ tTree f t b @
+--
+--   The first fan is extended to include the waist
+bTreef :: Int -> Int -> Int -> Net a
+bTreef _ 0 _ = twoWires
+bTreef _ _ 0 = twoWires
+bTreef f t b | f > t+1   = b1Tree t b
+             | otherwise = bRootTrees $ bT : bTs ++ [singleWire]
+  where bTs @ (bT : _) = bTreef' f b `map` [t-f+1 .. t-2] -- hmmm... Nope
+
 -- Add a "root" fan which covers
 -- the first wire of every sub-network
 
@@ -587,7 +620,7 @@ tRootTrees :: [Net a] -> Net a
 tRootTrees nets = Net n net'
   where ns = map width nets
         n  = sum ns
-        net' f (x : xs) =
+        net' f xs =
             let s      = partition' ns xs
                 s'     = zipWith (net `flip` f) nets s
                 y : ys = map last s'
@@ -595,46 +628,27 @@ tRootTrees nets = Net n net'
                                (\ac v -> let [w, acc] = f [ac, v] in (acc, w))
                                y ys
                 out    = zipWith with_last s' (fys ++ [acc])
-            in x : concat out
+            in concat out
         yi `with_last` y = init yi ++ [y]
 
--- | @ bTreef f t b @
---
---   Slice construction with fanout @f@
---
---   The first fan is extended to include the waist
-
--- Different order of b and t in the implementation!
 bTreef' :: Int -> Int -> Int -> Net a
-bTreef' f b t = bTreesf' !! (f - 2) !! b !! t
-  where bTreesf' = [[[bTreefMem' f t b | t <- [0 ..]]
-                                       | b <- [0 ..]]
-                                       | f <- [2 ..]]
-                                         -- @f@ is offset by 2
-        bTreefMem' = treefMem' $@ b1Tree
-                               $@ bRootTrees
-                               $@ bTreesf'
+bTreef' = memo $ treefMem b1Tree bRootTrees
 
 -- | @ bTreef f t b @
 tTreef' :: Int -> Int -> Int -> Net a
-tTreef' f b t = tTreesf' !! (f - 2) !! b !! t
-  where tTreesf' = [[[tTreefMem' f t b | t <- [0 ..]]
-                                       | b <- [0 ..]]
-                                       | f <- [2 ..]]
-        tTreefMem' = treefMem' $@ t1Tree
-                               $@ tRootTrees
-                               $@ tTreesf'
+tTreef' = memo $ treefMem t1Tree tRootTrees
 
-treefMem' :: (Int -> Int -> Net a) -- ^ Base case
-          -> ([Net a] -> Net a)    -- ^ Root tree
-          -> [[[Net a]]]           -- ^ Memo
-          -> Int -> Int -> Int -> Net a
+-- Different order of b and t in @treefMem@ from @treeMem@ !
+treefMem :: (Int -> Int -> a) -- ^ Base case (@ f > t+1 @ or @ b == 0 @)
+         -> ([a] -> a)        -- ^ Combine
+         -> Int               -- ^ Max fanout
+         -> Int -> Int -> a   -- ^ Memoized function
 
-treefMem' base root memo f = treef
-  where treef 0 _ = singleWire
-        treef _ 0 = singleWire
-        treef t b = if f > t+1 then base t b
-                               else root $ t' : t' : ts'
-          where t' : ts' = take (f-1) $ drop (t-f+1) $ memof !! (b-1)
-        memof = memo !! (f-2)
+treefMem base combine f = treefMem
+  where treefMem = multiMemo treef
+        treef b t | f > t+1 || b == 0 = base t b
+                  | otherwise         = combine $ c : cs
+          where cs @ (c : _) = treefMem (b-1) `map` [t-f+1 .. t-1]
 
+multiMemo :: (Memo a, Memo b) => (a -> b -> c) -> a -> b -> c
+multiMemo = memo . (memo .)
