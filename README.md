@@ -1,6 +1,6 @@
 Composition:
 
-_Core file_, `WSO.hs`, implementation of prefix networks described in [1]
+_Core file_, `WSO.hs`, implementation of prefix networks described in \[1\]
 (reference inside)
 
 `Memo.hs`, generic memoization, by Koen Claessen
