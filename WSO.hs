@@ -13,8 +13,8 @@
 
 module WSO (
   -- * Net type
-    Fan
-  , Net(..)
+    Net(..)
+  , Fan
   , singleWire
   , opFan
 
@@ -50,21 +50,32 @@ module WSO (
   , brentKung
 
   , slice2
-  , tTree
-  , bTree
 
   -- *** Any fanout
   , slice00
+
+  -- *** Fanout @ f >= 3 @
+  , slices
+  , slice
+
+  -- *** Matching B/T trees
+  , tTree
+  , bTree
+
   , t1Tree
   , b1Tree
+  , b1TreeWaist
 
-  -- *** Fanout f
   , tTreef
   , bTreef
 
   -- * Helper functions
-  , partition'
   , ($@)
+  , partition'
+  , multiMemo
+
+  , treeMem
+  , treefMem
   ) where
 
 import Data.List
@@ -72,8 +83,6 @@ import Data.Char
 import Memo
 
 -- * Net type
-
-type Fan a = [a] -> [a]
 
 data Net a = Net
   { width :: Int
@@ -86,9 +95,11 @@ data Net a = Net
    networks, even though the @net@ member may be applied to other lengths.
 
    Variables of type @ Net a @ will use names @c@, @d@, ...
-
-   As in [2], networks are parameterized by a \"fan\" component.
+   in the implementation.
  -}
+
+-- | As in [2], networks are parameterized by a \"fan\" component.
+type Fan a = [a] -> [a]
 
 -- | The only width 1 prefix network, does nothing
 singleWire :: Net a
@@ -166,6 +177,7 @@ show' = intercalate "\n" . map show
 
 --
 
+-- | Size of a circuit
 size :: Net Int -> Int
 size c = sum $ c $- szFan $ replicate (width c) 0
 
@@ -174,6 +186,7 @@ szFan (x : xs) = x : map (+1) xs
 
 --
 
+-- | Depth of a circuit
 depth c = maximum $ c $- dpFan $ replicate (width c) 0
 
 dpFan :: Fan Int
@@ -389,6 +402,11 @@ slices2 d = foldl1 (|>) [slice2 $ min k (d-k-1) | k <- [0 .. d-1]]
 brentKung :: Int {- ^ depth -} -> Net a
 brentKung d = foldl1 (|>) [slice2 $ min k (d-k-1) | k <- [0 .. d `div` 2]]
 
+-- | Slice with fanout 2 and depth @2*k+1@
+slice2 :: Int {- ^ @k@: depth of B and T -} -> Net a
+slice2 k = stackWSO1 $@ tTree k
+                     $@ bTree k
+
 --
 
 {- Combining /Top trees/ (Figure 6, left)
@@ -450,22 +468,17 @@ stackWSO1 tT bT = Net (n+1) net'
                                [z0, z2] = f (x0 : y2) -- y2 one element
                            in (bT $- f $ (z0 : y1)) ++ [z2]
 
--- | T tree
+-- | T tree with fanout 2 and depth @k@ matching @ bTree k @
 tTree :: Int {- ^ depth -} -> Net a
 tTree 0 = singleWire
 tTree k = combineT t t
   where t = tTree (k-1)
 
--- | B tree
+-- | B tree with fanout 2 and depth @k@ matching @ tTree k @
 bTree :: Int {- ^ depth -} -> Net a
 bTree 0 = singleWire
 bTree k = combineB b b
   where b = bTree (k-1)
-
--- | Slice with fanout 2 and depth @2*k+1@
-slice2 :: Int {- ^ @k@: depth of B and T -} -> Net a
-slice2 k = stackWSO1 $@ tTree k
-                     $@ bTree k
 
 -- *** Any fanout
 
@@ -497,7 +510,8 @@ withWaist ( OpenNet n net' ) = Net (n+1) net''
 
 -- | @ b1Tree t b @
 --
---   B1 tree with depth @ <= b @ matching @ t1Tree t b @
+--   B1 tree with depth @ <= b @ matching @ t1Tree t b @.
+--   No fanout restriction
 b1Tree :: Int -> Int -> Net a
 b1Tree t b = closeNet $ b1Tree' t b
 
@@ -520,7 +534,8 @@ b1Tree' = treeMem oSingleWire combine
 
 -- | @ t1Tree t b @
 --
---   T1 tree with depth @ <= t @ matching @ b1Tree t b @
+--   T1 tree with depth @ <= t @ matching @ b1Tree t b @.
+--   No fanout restriction
 t1Tree :: Int -> Int -> Net a
 t1Tree = treeMem singleWire combine
   where left @ ( Net n _ ) `combine` right @ ( Net m _ ) = Net (n+m) net'
@@ -533,12 +548,12 @@ t1Tree = treeMem singleWire combine
                       [z1, z3] = f (y1 ++ y3)
                   in y0 ++ [z1] ++ y2 ++ [z3]
 
--- Memoization
-treeMem :: a               -- ^ Base case
-        -> (a -> a -> a)   -- ^ Combine
-        -> Int -> Int -> a
+-- | Memoization structure for fanout 2
+treeMem :: a                 -- ^ Base case
+        -> (a -> a -> a)     -- ^ Combine
+        -> (Int -> Int -> a) -- ^ Memoized function
 treeMem base combine = treeMem'
-  where treeMem' = curry . memo $ uncurry tree
+  where treeMem' = multiMemo tree
         tree 0 _ = base
         tree _ 0 = base
         tree t b = treeMem' (t-1) b `combine` treeMem' (t-1) (b-1)
@@ -553,6 +568,11 @@ treeMem base combine = treeMem'
 slice00 t b = stack $@ singleWire ||| t1Tree t b
                     $@ b1TreeWaist t b
 
+-- | The resulting slices00 construction, assumed to be the widest (2^d) DSO
+-- for a given depth.
+
+slices00 d = foldl1 (|>) [slice00 k (d-k) | k <- [0 .. d-1]]
+
 --
 
 -- | @ partition' [p1, ..., pn] l @
@@ -564,9 +584,10 @@ partition'       [] _ = []
 partition' (p : ps) l = u : partition' ps v
   where (u, v) = splitAt p l
 
--- *** Fanout @ f >= 2 @
+-- *** Fanout @ f >= 3 @
 
 -- | slices(f)
+--
 --   Uses slices2 if @ f == 2 @
 slices :: Int -> Int -> Net a
 slices 2 d = slices2 d
@@ -574,9 +595,9 @@ slices f d = foldl1 (|>) [slice f k (d-k) | k <- [0 .. d-1]]
 
 -- | @ slice f t b @
 --
---   @ f >= 3 @
+--   Defined for @ f >= 3 @
 --
---   The bound fanout slice(f) construction
+--   slice(f)
 slice :: Int -> Int -> Int -> Net a
 slice f t b = stack $@ singleWire ||| tTreef f t b
                     $@ bTreef f t b -- Includes the waist
@@ -634,19 +655,20 @@ tRootTrees nets = Net n net'
             in concat out
         yi `with_last` y = init yi ++ [y]
 
--- B1 tree with max fanout @f@ and depth @ <= b @ matching @ tTree f t b @
+-- B tree with max fanout @f@ and depth @ <= b @ matching @ tTree f t b @
 bTreef' :: Int -> Int -> Int -> Net a
 bTreef' = memo $ treefMem b1Tree bRootTrees
 
--- T1 tree with max fanout @f@ and depth @ <= t @ matching @ bTree f t b @
+-- T tree with max fanout @f@ and depth @ <= t @ matching @ bTree f t b @
 tTreef' :: Int -> Int -> Int -> Net a
 tTreef' = memo $ treefMem t1Tree tRootTrees
 
--- Different order of b and t in @treefMem@ as opposed to @treeMem@!
+--   Different order of b and t in @treefMem@ as opposed to @treeMem@!
+-- | Memo. for parametric fanout @ >= 3 @
 treefMem :: (Int -> Int -> a) -- ^ Base case (@ f > t+1 @ or @ b == 0 @)
          -> ([a] -> a)        -- ^ Combine
          -> Int               -- ^ Max fanout
-         -> Int -> Int -> a   -- ^ Memoized function
+         -> (Int -> Int -> a) -- ^ Memoized function
 
 treefMem base combine f = treefMem
   where treefMem = multiMemo treef
@@ -654,5 +676,10 @@ treefMem base combine f = treefMem
                   | otherwise         = combine $ c : cs
           where cs @ (c : _) = treefMem (b-1) `map` [t-f+1 .. t-1]
 
+-- | Memoize function with multiple arguments.
+--
+--   This implementation applies memoization parameter-wise.
+--
+--   Hence it may be more efficient for higher order implementations
 multiMemo :: (Memo a, Memo b) => (a -> b -> c) -> a -> b -> c
 multiMemo = memo . (memo .)
