@@ -25,6 +25,7 @@ ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 --}
 
+-- Updated for GHC 7.9, March 2014, on github.com/Syrak
 
 
 {-# LANGUAGE DeriveGeneric, DefaultSignatures, FlexibleContexts #-}
