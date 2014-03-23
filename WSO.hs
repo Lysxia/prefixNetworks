@@ -86,8 +86,8 @@ data Net a = Net
 
 {- ^
    The presented construction use and produce /fixed-width/
-   (width: number of inputs)
-   networks, even though the @net@ member may be applied to other lengths.
+   (width: number of inputs) networks, even though the @net@ member
+   as a function may be applied to other lengths.
 
    Variables of type @ Net a @ will use names @c@, @d@, ...
    in the implementation.
