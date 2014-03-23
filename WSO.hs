@@ -81,7 +81,10 @@ module WSO (
 
 import Data.List
 import Data.Char
-import Memo
+import Data.Function.Memoize
+
+memo :: Memoizable a => (a -> c) -> a -> c
+memo = memoize
 
 -- * Net type
 
@@ -682,5 +685,5 @@ treefMem base combine f = treefMem
 --   This implementation applies memoization parameter-wise.
 --
 --   Hence it may be more efficient for higher order implementations
-multiMemo :: (Memo a, Memo b) => (a -> b -> c) -> a -> b -> c
+multiMemo :: (Memoizable a, Memoizable b) => (a -> b -> c) -> a -> b -> c
 multiMemo = memo . (memo .)
