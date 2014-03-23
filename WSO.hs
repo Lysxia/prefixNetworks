@@ -67,6 +67,7 @@ module WSO (
 
 import Data.List
 import Data.Char
+import Memo
 
 -- * Net type
 
@@ -524,26 +525,24 @@ b1TreeMem t b = OpenNet (n+m) net'
 --
 --   T1 tree with depth @<= t@ matching @ b1Tree t b @
 t1Tree :: Int -> Int -> Net a
-t1Tree t b = t1Trees !! t !! b
+t1Tree = treeMem singleWire combine
+  where left @ ( Net n _ ) `combine` right @ ( Net m _ ) = Net (n+m) net'
+          where net' f x = let (x0, x1) = splitAt n x
+                               y0'      =  left $- f $ x0
+                               y2'      = right $- f $ x1
+                               (y0, y1) = splitAt (n-1) y0'
+                               (y2, y3) = splitAt (m-1) y2'
+                               [z1, z3] = f (y1 ++ y3)
+                           in y0 ++ [z1] ++ y2 ++ [z3]
 
-t1Trees :: [[Net a]]
-t1Trees = [[t1TreeMem t b | b <- [0 ..]] | t <- [0 ..]]
-
-t1TreeMem 0 _ = singleWire
-t1TreeMem _ 0 = singleWire
-t1TreeMem t b = Net (n+m) net'
-  where treeLine = t1Trees !! (t-1) -- T1(t, b) is built from
-        left  = treeLine !! b       -- T1(t-1, b  ) and
-        right = treeLine !! (b-1)   -- T1(t-1, b-1)
-        n = width  left
-        m = width right
-        net' f x = let (x0, x1) = splitAt n x
-                       y0'      = net  left f x0
-                       y2'      = net right f x1
-                       (y0, y1) = splitAt (n-1) y0'
-                       (y2, y3) = splitAt (m-1) y2'
-                       [z1, z3] = f (y1 ++ y3)
-                   in y0 ++ [z1] ++ y2 ++ [z3]
+treeMem :: a               -- ^ Base case
+        -> (a -> a -> a)   -- ^ Combine
+        -> Int -> Int -> a
+treeMem base combine = treeMem'
+  where treeMem' = curry . memo $ uncurry tree
+        tree 0 _ = base
+        tree _ 0 = base
+        tree t b = treeMem' (t-1) b `combine` treeMem' (t-1) (b-1)
 
 -- | @ slice00 t b @
 --
@@ -604,22 +603,38 @@ tRootTrees nets = Net n net'
 --   Slice construction with fanout @f@
 --
 --   The first fan is extended to include the waist
+
+-- Different order of b and t in the implementation!
 bTreef' :: Int -> Int -> Int -> Net a
 bTreef' f b t = bTreesf' !! (f - 2) !! b !! t
--- Different order of b and t in the implementation!
+  where bTreesf' = [[[bTreefMem' f t b | t <- [0 ..]]
+                                       | b <- [0 ..]]
+                                       | f <- [2 ..]]
+                                         -- @f@ is offset by 2
+        bTreefMem' = treefMem' $@ b1Tree
+                               $@ bRootTrees
+                               $@ bTreesf'
 
--- @f@ is offset by 2
-bTreesf' :: [[[Net a]]]
-bTreesf' = [[[bTreefMem' f t b | t <- [0 ..]] | b <- [0 ..]] | f <- [2 ..]]
+-- | @ bTreef f t b @
+tTreef' :: Int -> Int -> Int -> Net a
+tTreef' f b t = tTreesf' !! (f - 2) !! b !! t
+  where tTreesf' = [[[tTreefMem' f t b | t <- [0 ..]]
+                                       | b <- [0 ..]]
+                                       | f <- [2 ..]]
+        tTreefMem' = treefMem' $@ t1Tree
+                               $@ tRootTrees
+                               $@ tTreesf'
 
-bTreefMem' :: Int -> Int -> Int -> Net a
-bTreefMem' _ 0 _ = singleWire
-bTreefMem' _ _ 0 = singleWire
-bTreefMem' f t b =
-  if f > t+1 then
-    b1Tree t b
-  else
-    bRootTrees $ b' : b' : bs'
-  where treesf   = bTreesf' !! (f-2) !! (b-1)
-        b' : bs' = take (f-1) $ drop (t-f+1) treesf
+treefMem' :: (Int -> Int -> Net a) -- ^ Base case
+          -> ([Net a] -> Net a)    -- ^ Root tree
+          -> [[[Net a]]]           -- ^ Memo
+          -> Int -> Int -> Int -> Net a
+
+treefMem' base root memo f = treef
+  where treef 0 _ = singleWire
+        treef _ 0 = singleWire
+        treef t b = if f > t+1 then base t b
+                               else root $ t' : t' : ts'
+          where t' : ts' = take (f-1) $ drop (t-f+1) $ memof !! (b-1)
+        memof = memo !! (f-2)
 
