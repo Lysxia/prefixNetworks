@@ -12,4 +12,6 @@ of produced networks
 
 `Makefile`, generate *HTML* documentation for `WSO`:
 
-    make # produces doc/WSO.hs
+    make
+
+This will produce a file doc/WSO.html
