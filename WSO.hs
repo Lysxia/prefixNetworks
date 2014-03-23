@@ -570,7 +570,7 @@ partition' (p : ps) l = u : partition' ps v
 --   Uses slices2 if @ f == 2 @
 slices :: Int -> Int -> Net a
 slices 2 d = slices2 d
-slices f d = foldl1 (|>) [slice f k (d-k+1) | k <- [0 .. d-1]]
+slices f d = foldl1 (|>) [slice f k (d-k) | k <- [0 .. d-1]]
 
 -- | @ slice f t b @
 --
