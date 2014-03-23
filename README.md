@@ -3,7 +3,9 @@ Composition:
 _Core file_, `WSO.hs`, implementation of prefix networks described in \[1\]
 (reference inside)
 
-`Memo.hs`, generic memoization, by Koen Claessen
+`Memo.hs`, generic memoization, by Koen Claessen -- this branch doesn't use this
+file anymore, but the *memoize* library, which is basically the same, but
+appears broken with GHC 7.9...
 
 `ExamplesWSO.hs`, self-explanatory
 
