@@ -2,6 +2,7 @@
 module Main where
 
 import WSO
+import Pretty
 
 main = do
   let ser = serial n
