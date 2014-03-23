@@ -10,6 +10,8 @@ _Core file_, `WSO.hs`, implementation of prefix networks described in \[1\]
 `Numbers.hs`, code measuring various statistics (cur. widths and depths)
 of produced networks
 
+`Pretty.hs`, circuit pretty printer
+
 `Makefile`, with a command generating *HTML* documentation for `WSO`:
 
     make
