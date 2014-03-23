@@ -1,5 +1,8 @@
 module Numbers where
 
+-- Obtained sequences can be compared with the
+-- Online Encyclopedia of Integer Sequences (oeis.org)
+
 import WSO
 
 depths = [1 .. 20]
