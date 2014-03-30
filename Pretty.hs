@@ -5,11 +5,19 @@ module Pretty (
   , FanPos
   , printNet
   , printNetV
+  , tikzOfNet
+  , tikzOfFan
   ) where
 
 import WSO
 import Data.List
 import Data.Char
+
+import Text.LaTeX.Packages.TikZ
+import Text.LaTeX.Packages.TikZ.Syntax
+import Text.LaTeX.Packages.TikZ.PathBuilder
+import Text.LaTeX.Base.Render
+import Text.LaTeX.Base.Syntax
 
 -- * \"Pretty\" printing
 
@@ -19,20 +27,24 @@ data FanPos = FanPos
   , curDepth :: Int            -- ^ Current depth of the wire
   , fans     :: [(Int, [Int])] -- ^ Fans and their depth
   }
+  deriving Show
 
 -- | Print an ASCII drawing of the network
 printNet :: Net FanPos -> IO ()
-printNet = printLines . draw
+printNet = printLines . drawNet
 
 -- | Print circuit vertically
 --   (wide circuits get messed up by terminal line wrap horizontally)
 printNetV :: Net FanPos -> IO ()
-printNetV = printLines . reverse . map (map swapChar) . transpose . draw2
+printNetV = printLines . reverse . map (map swapChar) . transpose . drawNet2
   where swapChar '-' = '|'
         swapChar '|' = '-'
         swapChar  x  = x
 
 --
+
+fanPos :: Net FanPos -> [FanPos]
+fanPos c = bottomUp $ c $- dispFan $ dispZero $ width c
 
 updateFans :: ([(Int, [Int])] -> [(Int, [Int])]) -> FanPos -> FanPos
 updateFans f fp = fp { fans = f $ fans fp }
@@ -67,9 +79,8 @@ replicate' = (concat .) . replicate
  -}
 layout :: [FanPos] -> [[[(Int, [Int])]]]
 layout fps = layout' 0 fps [] []
-  where layout' _  [] curLine lines = reverse
-                                    $ if null curLine then lines
-                                                      else curLine : lines
+  where layout' _  []      [] lines = reverse                     lines
+        layout' _  [] curLine lines = reverse $ reverse curLine : lines
         layout' d fps curLine lines =
           if null lo
             then layout' (d+1) fps'             [] $ reverse curLine : lines
@@ -118,22 +129,22 @@ drawWith :: (Int -> [(Int, [Int])] -> String)
          -> (Int -> [String]) {- ^ header (e.g. with wire indices) -}
          -> Net FanPos -> [String]
 drawWith drawLine _space header c = header n ++ [space] ++ lines
-  where lo    = layout $ bottomUp $ c $- dispFan $ dispZero n
+  where lo    = layout $ fanPos c
         lines = (++ [space]) . map (drawLine n) =<< lo
         space = _space n
         n     = width c
 
 --
 
-draw :: Net FanPos -> [String]
-draw = drawWith $@ drawLine
-                $@ intersperse ' ' . flip replicate '|'
-                $@ map (intersperse ' ') . indices
+drawNet :: Net FanPos -> [String]
+drawNet = drawWith $@ drawLine
+                   $@ intersperse ' ' . flip replicate '|'
+                   $@ map (intersperse ' ') . indices
 
-draw2 :: Net FanPos -> [String]
-draw2 = drawWith $@ drawLine2
-                 $@ flip replicate '|'
-                 $@ indices
+drawNet2 :: Net FanPos -> [String]
+drawNet2 = drawWith $@ drawLine2
+                    $@ flip replicate '|'
+                    $@ indices
 
 indices n = indices' n [] $ map (intToDigit . (`mod` 10)) [0 ..]
   where indices' 0 acc _ = acc
@@ -145,3 +156,44 @@ printLines :: [String] -> IO ()
 printLines = foldr $@ (>>) . putStrLn
                    $@ return ()
 
+-- Tikz rendering
+
+unit = 1 :: Double
+radius = 0.1 :: Double
+
+foldTikz :: [TikZ] -> TikZ
+foldTikz = foldl' (->>) emptytikz
+
+tikzOfNet :: Net FanPos -> TikZ
+tikzOfNet c = (->>) wires . foldTikz . zipWith tikzOfFans [0, -unit ..] $ levels
+  where levels = concat . layout . fanPos $ c
+        wires = foldTikz [draw
+                             $ Start (pointAtXY x 0)
+                        `Line` pointAtXY x d | x <- [0 .. fromIntegral n - 1]]
+        n = width c
+        d = - fromIntegral (length levels)
+
+tikzOfFans :: Double -> [(Int, [Int])] -> TikZ
+tikzOfFans yPos fs = foldTikz $ map (tikzOfFan yPos) fs
+
+-- f is not empty
+tikzOfFan :: Double -> (Int, [Int]) -> TikZ
+tikzOfFan yPos (i, f) = foldTikz
+                   $ (map draw $ start : middle ++ end) ++ map fill circles
+  where start = Start (pointAtXY (fromIntegral i) yPos) `Line` secondPt
+        middle | i + 1 == last f = []
+               | otherwise       = [middle']
+        middle' = Start secondPt
+           `Line` pointAtXY (fromIntegral (last f) - unit / 2) yPos'
+        (end, circles) = unzip $ map end' f
+        end' j = (Start (pointAtXY (fromIntegral j - unit / 2) yPos') `Line` p
+               , Start p `Circle` radius)
+          where p = pointAtXY (fromIntegral j) yPos''
+        secondPt = pointAtXY (fromIntegral i + unit / 2) yPos'
+        yPos'  = yPos - unit / 2
+        yPos'' = yPos - unit
+
+renderNetFile :: FilePath -> Net FanPos -> IO ()
+renderNetFile f = renderFile f . tp' . tikzOfNet
+  where tp' :: TikZ -> LaTeX
+        tp' = tikzpicture
