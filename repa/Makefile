@@ -1,6 +1,7 @@
 GHC_OPTIONS=-threaded \
             -funfolding-use-threshold1000 \
-            -funfolding-keeness-factor1000
+            -funfolding-keeness-factor1000 \
+						-eventlog
 
 HC=ghc $(GHC_OPTIONS)
 
