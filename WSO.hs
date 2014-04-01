@@ -38,6 +38,7 @@ module WSO (
   -- ** Sklansky
   , sklansky
   , sklansky'
+  , sklansky''
 
   -- ** Slices
   -- *** Fanout 2
@@ -241,7 +242,7 @@ sklansky n = Net n (net' n)
 -- | Sklansky construction (alternative)
 --
 -- If the width @n@ is odd, the middle wire is put to the right.
-sklansky' :: Int {- ^ width -} -> Net a
+sklansky' :: Int -> Net a
 sklansky' n = Net n (net' n)
   where net' 1 _ x = x
         net' n f x = let (x1, x2) = splitAt (n `div` 2) x
@@ -249,6 +250,24 @@ sklansky' n = Net n (net' n)
                          s2       = net' (n - (n `div` 2)) f x2
                          (t1, t2) = splitAt ((n `div` 2) - 1) s1
                      in t1 ++ f (t2 ++ s2)
+
+-- | Sklansky construction (ter)
+--
+-- Obtained by splitting at powers of 2
+sklansky'' :: Int -> Net a
+sklansky'' n = Net n $ divide $ prevPow2 n
+  where prevPow2 0 = 0
+        prevPow2 1 = 1
+        prevPow2 n = 2 * prevPow2 (n `div` 2)
+        divide _ _ [] = []
+        divide _ _ [x] = [x]
+        divide n f xs | null x2   = divide (n `div` 2) f xs
+                      | otherwise = y1 ++ z
+          where (x1, x2) = splitAt n xs
+                y1'      = divide (n `div` 2) f x1
+                y3       = divide (n `div` 2) f x2
+                (y1, y2) = splitAt (n-1) y1'
+                z        = f $ y2 ++ y3
 
 checkSklansky = printCheck $ sklansky 20
 
