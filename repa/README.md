@@ -4,4 +4,5 @@ To run the benchmark(s)
     benches/BenchSklansky +RTS $(RTSOPTS)
 
 Repa Sklansky is sloooow:
-140 times `scanl1` on 36000 `Int`'s for `(+)`.
+80 times `scanl1` on 30000 `Int`'s for `(+)`
+(good parallelisation on 2 HECS, down to 40 times).
