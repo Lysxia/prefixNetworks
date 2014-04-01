@@ -5,15 +5,28 @@ _Core file_, `WSO.hs`, implementation of prefix networks described in \[1\]
 
 `Memo.hs`, generic memoization, credit to Koen Claessen
 
-`ExamplesWSO.hs`, self-explanatory
-
 `Numbers.hs`, code measuring various statistics (cur. widths and depths)
 of produced networks
 
 `Pretty.hs`, circuit pretty printer
 
-`Makefile`, with a command generating *HTML* documentation for `WSO`:
+`example/`.
+
+`Makefile`.
+
+To generate *HTML* documentation for `WSO` as `doc/WSO.html`:
 
     make
 
-This will produce a file `doc/WSO.html`.
+`example/ExampleTikz.hs` illustrates the use of the function
+`Pretty.renderNetFile`,
+generating a file `example/net.tex`.
+It is then included inside `example/example.tex`
+to produce `example/example.pdf`.
+
+---
+
+To do:
+
+- Print (wide) networks vertically
+

@@ -5,8 +5,11 @@ module Pretty (
   , FanPos
   , printNet
   , printNetV
+
   , tikzOfNet
   , tikzOfFan
+
+  , renderNetFile
   ) where
 
 import WSO
@@ -193,7 +196,10 @@ tikzOfFan yPos (i, f) = foldTikz
         yPos'  = yPos - unit / 2
         yPos'' = yPos - unit
 
-renderNetFile :: FilePath -> Net FanPos -> IO ()
-renderNetFile f = renderFile f . tp' . tikzOfNet
+renderNetFile :: FilePath
+              -> Double   {- ^ scale factor -}
+              -> Net FanPos
+              -> IO ()
+renderNetFile f s = renderFile f . tp' . scope [TScale s] . tikzOfNet
   where tp' :: TikZ -> LaTeX
         tp' = tikzpicture
