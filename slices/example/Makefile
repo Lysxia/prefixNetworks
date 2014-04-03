@@ -1,8 +1,7 @@
-example.pdf: net.tex example.tex
+example.pdf: exampleTikz.tex exampleTikz.tex
 	pdflatex example.tex
 
-net.tex: ExampleTikz
-	./ExampleTikz
+%.tex: %.hs
+	ghc -i.. --make $<
+	./$*
 
-ExampleTikz: ExampleTikz.hs
-	ghc -i.. --make ExampleTikz.hs

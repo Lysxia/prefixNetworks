@@ -5,6 +5,6 @@ module Main where
 import WSO
 import Pretty
 
-main = renderNetFile "net.tex" scale net
+main = renderNetFile "exampleTikz.tex" scale net
   where scale = 0.5
         net = slices 3 6

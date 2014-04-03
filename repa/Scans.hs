@@ -20,7 +20,7 @@ scanS :: Unbox e
       => (e -> e -> e)
       -> Array U DIM1 e
       -> Array U DIM1 e
-scanS (*) a = fromUnboxed sh . Unboxed.scanl1 (*) . toUnboxed $ a
+scanS (?) a = fromUnboxed sh . Unboxed.scanl1 (?) . toUnboxed $ a
   where sh = extent a
 
 --
@@ -31,9 +31,9 @@ sklanskyA' :: (Source r e, Shape sh, Monad m, Unbox e)
           -> Array r (sh :. Int) e
           -> Int {- ^ level -}
           -> m (Array U (sh :. Int) e)
-sklanskyA' (*) a k = computeUnboxedP $ traverse a id f
+sklanskyA' (?) a k = computeUnboxedP $ traverse a id f
   where f get sh' @ (sh :. i)
-          | i `testBit` k = get (sh :. clearBits i) * get sh'
+          | i `testBit` k = get (sh :. clearBits i) ? get sh'
           | otherwise   = get sh'
         clearBits i = (i `clearBit` k) .|. (bit k - 1) -- `Bit hackery'
 
@@ -42,7 +42,7 @@ sklanskyA :: (Shape sh, Monad m, Unbox e)
          => (e -> e -> e)
          -> Array U (sh :. Int) e
          -> m (Array U (sh :. Int) e)
-sklanskyA (*) a = foldM (sklanskyA' (*)) a [0 .. log2 n]
+sklanskyA (?) a = foldM (sklanskyA' (?)) a [0 .. log2 n]
   where (_ :. n) = extent a
 
 --
