@@ -168,13 +168,14 @@ foldTikz :: [TikZ] -> TikZ
 foldTikz = foldl' (->>) emptytikz
 
 tikzOfNet :: Net FanPos -> TikZ
-tikzOfNet c = (->>) wires . foldTikz . zipWith tikzOfFans [0, -unit ..] $ levels
+tikzOfNet c = (->>) wires . foldTikz . zipWith tikzOfFans [unit ..]
+            $ reverse levels
   where levels = concat . layout . fanPos $ c
         wires = foldTikz [draw
                              $ Start (pointAtXY x 0)
                         `Line` pointAtXY x d | x <- [0 .. fromIntegral n - 1]]
         n = width c
-        d = - fromIntegral (length levels)
+        d = fromIntegral (length levels)
 
 tikzOfFans :: Double -> [(Int, [Int])] -> TikZ
 tikzOfFans yPos fs = foldTikz $ map (tikzOfFan yPos) fs
