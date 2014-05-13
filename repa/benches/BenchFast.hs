@@ -28,7 +28,7 @@ main = do
     scan = fastScan 4
     name = "FastScan"
     op = (+)
-    n = 100000
+    n = 1000000
     rand = randomInts n
     ua = fromListUnboxed (ix1 n) $ rand
 

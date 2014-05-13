@@ -25,7 +25,7 @@ main = do
     ]
   where compute = runIdentity . brentKungA th op
         op = (+)
-        n = 100000
+        n = 1000000
         th = 1024 -- Threshold
         rand = randomInts n
         ua = fromListUnboxed (ix1 n) $ rand
