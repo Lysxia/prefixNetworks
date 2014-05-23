@@ -40,6 +40,9 @@ module WSO (
   , sklansky'
   , sklansky''
 
+  -- ** Ladner-Fischer
+  , lafi
+
   -- ** Slices
   -- *** Fanout 2
   , slices2
@@ -68,14 +71,14 @@ module WSO (
 
   -- * Helper functions
   , ($@)
-  , partition'
+  , partition
   , multiMemo
 
   , treeMem
   , treefMem
   ) where
 
-import Data.List
+import Data.List hiding ( partition )
 import Memo
 
 -- * Net type
@@ -271,6 +274,29 @@ sklansky'' n = Net n $ divide $ prevPow2 n
 
 checkSklansky = printCheck $ sklansky 20
 
+-- | Ladner-Fischer, depth @d@, slack @k@
+lafi :: Int {-^ Width -} -> Int {-^ Slack -} -> Net a
+lafi n k = Net (2 ^ n) $ net' n k
+  where
+    net' 0 _ _ (xs@[_]) = xs
+    net' n 0 f xs =
+      let
+        (x1, x2) = splitAt (2 ^ (n - 1)) xs
+        y1 = net' (n - 1) 1 f x1
+        y2' = net' (n - 1) 0 f x2
+        y2 = f $ last y1 : y2'
+      in init y1 ++ y2
+    net' n k f xs =
+      let
+        xs' = map f $ pair xs
+        x1 = map head xs'
+        x2 = xs' >>= tail
+        y2 = net' (n - 1) (k - 1) f x2
+        z = concat . zipWith (\a b -> f [a, b]) y2 $ tail x1
+      in head x1 : z ++ [last y2]
+    pair []           = []
+    pair (x : y : xs) = [x, y] : pair xs
+
 -- ** Slices
 
 -- *** Fanout 2
@@ -455,13 +481,13 @@ slices00 d = foldl1 (|>) [slice00 k (d-k) | k <- [0 .. d-1]]
 
 --
 
--- | @ partition' [p1, ..., pn] l @
+-- | @ partition [p1, ..., pn] l @
 --
 --   Partition the second argument into sublists of sizes @p1@, ..., @pn@,
 --   discards the remaining elements.
-partition' :: [Int] -> [a] -> [[a]]
-partition'       [] _ = []
-partition' (p : ps) l = u : partition' ps v
+partition :: [Int] -> [a] -> [[a]]
+partition       [] _ = []
+partition (p : ps) l = u : partition ps v
   where (u, v) = splitAt p l
 
 -- *** Fanout @ f >= 3 @
@@ -511,7 +537,7 @@ bRootTrees :: [Net a] -> Net a
 bRootTrees nets = Net n net'
   where ns = map width nets
         n  = sum ns
-        net' f x = let s   = partition' ns x
+        net' f x = let s   = partition ns x
                        fhs = f $ map head s
                        s'  = zipWith as_head_of fhs s
                        out = zipWith ($- f) nets s'
@@ -525,7 +551,7 @@ tRootTrees nets = Net n net'
   where ns = map width nets
         n  = sum ns
         net' f x =
-            let s      = partition' ns x
+            let s      = partition ns x
                 s'     = zipWith ($- f) nets s
                 y : ys = map last s'
                 (acc, fys) = mapAccumL

@@ -93,10 +93,10 @@ layout fps = layout' 0 fps [] []
         -- s.t. the fans in @lo@ don't overlap
         scan _ _   [] = ([], []) -- @ (lo, fps') @
         scan d i _fps @ (fp : fps)
-          | null (fans fp) = scan d (i+1) fps
-          |        d == d' = consPair ((j, f), updateFans tail fp)
+          | null (fans fp) = scan d i fps
+          | d == d' && i <= j = consPair ((j, f), updateFans tail fp)
                                     $ scan d (last f + 1) fps
-          |      otherwise = consSnd fp $ scan d (i+1) fps
+          |      otherwise = consSnd fp $ scan d i fps
           where FanPos j _ ((d', f) : _) = fp
                 consPair (x, y) (xs, ys) = (x : xs, y : ys)
                 consSnd      y  (xs, ys) = (    xs, y : ys)
