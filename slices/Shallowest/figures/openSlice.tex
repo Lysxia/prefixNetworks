@@ -1,0 +1,45 @@
+\begin{tikzpicture}
+\begin{scope}[scale=.7]
+  \def\L{0}
+  \def\R{7}
+  \def\B{0}
+  \def\D{2}
+  \def\K{4}
+  \def\T{7}
+
+  \coordinate (VN) at (\R, \K);
+  \coordinate (H2) at (\L+1, \T);
+  \coordinate (HN) at (\R, \T);
+
+  \coordinate (V0) at (\L, \D);
+  \coordinate (V0') at (\L, \B);
+  \coordinate (UM) at (\R-1, \B);
+
+  \foreach \x in {1, 3, 6}
+    \draw (\x, \T) -- (\x, \K) (\x, \D) -- (\x, \B);
+
+  \foreach \x in {2, 4, 5}
+    \draw (\x, \T) -- (\x, \B);
+
+  \def\topTri{(H2) -- (VN) -- (HN)}
+  \fill[gray] \topTri -- cycle;
+  \draw \topTri;
+  \fill (VN) circle (.1);
+
+  \def\botTri{(V0') -- (V0) -- (UM)};
+  \fill[gray] \botTri -- cycle;
+  \draw \botTri;
+
+  \draw[dotted] (\L+1, \K) -- (\R, \K);
+  \draw[dotted] (\L, \D) -- (\R-1, \D);
+
+  \draw[->] (\L-.5, \K) -- (\L-1, \K) node[left] {\lst$ts$};
+  \draw[->] (\L-1, \D) node[left] {\lst$ys$} -- (\L-.5, \D);
+
+  \draw[|-|] (\L+1, \T+.5) to node[above] {\lst$xs$} (\R, \T+.5);
+  \draw[|-|] (\L, \B-.5) to node[below] {\lst$zs$} (\R-1, \B-.5);
+
+  \node[above] at (V0) {$x_0$};
+  \node[below] at (VN) {$y'_n$};
+\end{scope}
+\end{tikzpicture}

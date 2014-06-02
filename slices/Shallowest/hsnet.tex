@@ -1,0 +1,91 @@
+\documentclass[11pt]{article}
+
+\usepackage[english]{babel}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+%\usepackage{mathptm}
+%\usepackage{times}
+\usepackage{amsmath}
+\usepackage{amsthm}
+\usepackage{mathtools}
+\usepackage{listings}
+\usepackage{tikz}
+\usepackage{subcaption}
+\usepackage{rotating}
+
+\usetikzlibrary{calc}
+\usetikzlibrary{patterns}
+
+\frenchspacing
+
+\lstset{
+  basicstyle = \ttfamily
+}
+
+\DeclarePairedDelimiter{\ceil}{\lceil}{\rceil}
+\DeclarePairedDelimiter{\floor}{\lfloor}{\rfloor}
+
+\newcommand{\define}{\stackrel{\mathit{def}}=}
+\newcommand{\pleft}{\mathit{left}}
+\newcommand{\pright}{\mathit{right}}
+\newcommand{\depth}{\mathit{depth}}
+\newcommand{\val}{\mathit{val}}
+\newcommand{\LF}{\mathit{LF}}
+
+%\centering in all figures
+\makeatletter
+\g@addto@macro\@floatboxreset\centering
+\makeatother
+
+\newtheorem{lemma}{Lemma}
+
+%listings for Haskell / FP
+\lstloadlanguages{Haskell}
+\lstnewenvironment{code}
+{
+  \lstset{
+  %language=Haskell
+  }
+  \csname lst@SetFirstLabel\endcsname
+}
+{
+  \csname lst@SaveFirstLabel\endcsname
+}
+\lstset{
+  language=Haskell,
+  basicstyle=\small\ttfamily,
+  flexiblecolumns=false,
+  basewidth={0.5em,0.45em},
+  literate={+}{{$+$}}1 {/}{{$/$}}1 {*}{{$*$}}1 {=}{{$=$}}1
+           {>}{{$>$}}1 {<}{{$<$}}1 {\\}{{$\lambda$}}1
+           {\\\\}{{\char`\\\char`\\}}1
+           {->}{{$\rightarrow$}}2
+           {>=}{{$\geq$}}2 {<-}{{$\leftarrow$}}2
+           {<=}{{$\leq$}}2 {=>}{{$\Rightarrow$}}2
+           {\ .}{{$\circ$}}2 {\ .\ }{{$\circ$}}2
+           {>>}{{>>}}2 {>>=}{{>>=}}2
+           {|}{{$\mid$}}1
+           {==}{{$==$}}2
+           {++}{{$++$}}2
+           % Network specific
+           {|>}{{$\triangleright$}}2
+}
+
+\newcommand{\lst}{\lstinline}
+\newcommand{\ignore}[1]{}
+
+\begin{document}
+
+\title{A minimum depth prefix network (that is far from optimal)}
+
+\author{Li-yao Xia}% {firstname}.{lastname}@ens.fr
+
+\maketitle
+
+\input{Construct.lhs}
+
+\newpage
+
+\input{table}
+
+\end{document}

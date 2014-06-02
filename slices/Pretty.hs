@@ -10,6 +10,7 @@ module Pretty (
   , tikzOfFan
 
   , renderNetFile
+  , renderNetFileV
   ) where
 
 import WSO
@@ -167,8 +168,8 @@ radius = 0.1 :: Double
 foldTikz :: [TikZ] -> TikZ
 foldTikz = foldl' (->>) emptytikz
 
-tikzOfNet :: Net FanPos -> TikZ
-tikzOfNet c = (->>) wires . foldTikz . zipWith tikzOfFans [unit ..]
+tikzOfNet :: (Double -> Double -> TPoint) -> Net FanPos -> TikZ
+tikzOfNet pointAtXY c = (->>) wires . foldTikz . zipWith (tikzOfFans pointAtXY) [unit ..]
             $ reverse levels
   where levels = concat . layout . fanPos $ c
         wires = foldTikz [draw
@@ -177,12 +178,12 @@ tikzOfNet c = (->>) wires . foldTikz . zipWith tikzOfFans [unit ..]
         n = width c
         d = fromIntegral (length levels)
 
-tikzOfFans :: Double -> [(Int, [Int])] -> TikZ
-tikzOfFans yPos fs = foldTikz $ map (tikzOfFan yPos) fs
+tikzOfFans :: (Double -> Double -> TPoint) -> Double -> [(Int, [Int])] -> TikZ
+tikzOfFans pointAtXY yPos fs = foldTikz $ map (tikzOfFan pointAtXY yPos) fs
 
 -- f is not empty
-tikzOfFan :: Double -> (Int, [Int]) -> TikZ
-tikzOfFan yPos (i, f) = foldTikz
+tikzOfFan :: (Double -> Double -> TPoint) -> Double -> (Int, [Int]) -> TikZ
+tikzOfFan pointAtXY yPos (i, f) = foldTikz
                    $ (map draw $ start : middle ++ end) ++ map fill circles
   where start = Start (pointAtXY (fromIntegral i) yPos) `Line` secondPt
         middle | i + 1 == last f = []
@@ -201,6 +202,15 @@ renderNetFile :: FilePath
               -> Double   {- ^ scale factor -}
               -> Net FanPos
               -> IO ()
-renderNetFile f s = renderFile f . tp' . scope [TScale s] . tikzOfNet
+renderNetFile f s = renderFile f . tp' . scope [TScale s] . tikzOfNet pointAtXY
   where tp' :: TikZ -> LaTeX
         tp' = tikzpicture
+
+renderNetFileV :: FilePath
+              -> Double   {- ^ scale factor -}
+              -> Net FanPos
+              -> IO ()
+renderNetFileV f s = renderFile f . tp' . scope [TScale s] . tikzOfNet pointAtXY'
+  where tp' :: TikZ -> LaTeX
+        tp' = tikzpicture
+        pointAtXY' x y = pointAtXY (-y) x
