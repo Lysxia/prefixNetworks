@@ -1,3 +1,5 @@
+\section{Building blocks}
+
 \begin{code}
 module PNet (
   -- * Net type
@@ -14,6 +16,11 @@ module PNet (
   , stack
   , (|||)
 
+  , partition
+\end{code}
+
+\ignore{
+\begin{code}
   -- * Network information
   , size
   , depth
@@ -36,13 +43,13 @@ module PNet (
 
   -- * Auxiliary functions
   , ($@)
-  , partition
   , multiMemo
   ) where
 
 import Memo
 import Data.List hiding ( partition )
 \end{code}
+}
 
 A network is represented by the following type:
 
@@ -132,7 +139,35 @@ stack c @ ( Net n _ ) d @ ( Net m _ ) =
               else error $ "Stacking " ++ show n ++ " on " ++ show m
   where net' f = (d $- f) . (c $- f)
 
+--
 
+-- | @ partition [p1, ..., pn] l @
+--
+--   Partition the second argument into sublists of sizes @p1@, ..., @pn@,
+--   discards the remaining elements.
+partition :: [Int] -> [a] -> [[a]]
+partition       [] _ = []
+partition (p : ps) l = u : partition ps v
+  where (u, v) = splitAt p l
+
+\end{code}
+
+Sklansky recursion pattern. Fig.~\ref{fig:sklanskyrec}.
+
+\begin{code}
+sklanskyRec :: Net a -> Net a -> Net a
+sklanskyRec a b
+  = a |> (stack (singleWire ||| b)
+              $ fanNet (width b + 1))
+\end{code}
+
+\begin{figure}
+\input{sklanskyrec}
+\caption{\label{fig:sklanskyrec}}
+\end{figure}
+
+\ignore{
+\begin{code}
 -- * Network information
 
 -- | Visual verification of networks using list concatenation
@@ -175,7 +210,11 @@ foFan :: Fan Int
 foFan xs = replicate n fo
   where n = length xs
         fo = maximum (n : xs)
+\end{code}
+}
 
+\ignore{
+\begin{code}
 -- | Left associative application to help reduce the number of brackets
 --
 --   A syntactic trick dependent on personal taste
@@ -197,27 +236,9 @@ serial n = Net
   where net' f          [x] = [x]
         net' f (x : y : xs) = x' : (net' f $ y' : xs)
           where [x', y'] = f [x, y]
-\end{code}
 
-\begin{code}
 -- ** Sklansky
-\end{code}
 
-Sklansky recursion pattern. Fig.~\ref{fig:sklanskyrec}.
-
-\begin{code}
-sklanskyRec :: Net a -> Net a -> Net a
-sklanskyRec a b
-  = a |> (stack (singleWire ||| b)
-              $ fanNet (width b + 1))
-\end{code}
-
-\begin{figure}
-\input{sklanskyrec}
-\caption{\label{fig:sklanskyrec}}
-\end{figure}
-
-\begin{code}
 -- | Sklansky construction
 --
 -- If the width @n@ is odd,
@@ -294,15 +315,5 @@ lafi n k = Net (2 ^ n) $ net' n k
 --   Hence it may be more efficient for higher order implementations
 multiMemo :: (Memo a, Memo b) => (a -> b -> c) -> a -> b -> c
 multiMemo = memo . (memo .)
-
---
-
--- | @ partition [p1, ..., pn] l @
---
---   Partition the second argument into sublists of sizes @p1@, ..., @pn@,
---   discards the remaining elements.
-partition :: [Int] -> [a] -> [[a]]
-partition       [] _ = []
-partition (p : ps) l = u : partition ps v
-  where (u, v) = splitAt p l
 \end{code}
+}

@@ -1,6 +1,6 @@
 This module implements the construction of a prefix network with minimal depth.
 
-\section{Building blocks}
+\section{Half function}
 
 \begin{code}
 module Shallowest.Construct where
@@ -9,14 +9,14 @@ import PNet
 import Data.List hiding ( partition )
 \end{code}
 
-
 Our construction should produce networks of all widths $n$.
 Furthermore, it consists in several ways to
-compose two networks of approximately the same width.
+compose two networks of approximately the same width (a ``half'').
 When the width a power of two $n=2^d$,
 the division in halves is straightforward.
 
-Different solutions can be proposed:
+Different solutions can be proposed
+in the general case to determine a ``half'':
 
 \begin{itemize}
   \item Construct a network of width $2^{\ceil{\log_2 n}}$, and truncate it.
@@ -99,7 +99,7 @@ openSlice
 
 \paragraph{An interpretation}
 It can be seen as an \emph{incomplete} prefix network with $n+1$ inputs,
-$x_0,\dots,x_n$, computing ${x_0\circ\dots\circ x_i}_{0\leq i\leq n}$.%
+$x_0,\dots,x_n$, computing $\{x_0\circ\dots\circ x_i\}_{0\leq i\leq n}$.%
 \footnote{This is the interpretation of its usage in \lst$slice$,
 but \lst$openSlice$ is a generalization which also includes
 a structure used in its own definition.

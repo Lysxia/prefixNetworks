@@ -14,7 +14,7 @@
 module WSO (
   -- * Slices
   -- ** Fanout 2
-  , slices2
+    slices2
   , brentKung
 
   , slice2
@@ -45,6 +45,7 @@ module WSO (
 
 import PNet
 import Data.List hiding ( partition )
+import Memo
 
 -- * Slices
 

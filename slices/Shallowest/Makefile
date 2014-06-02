@@ -6,7 +6,7 @@ TEX=$(FIG:%=figures/%)
 DOC=hsnet
 DOCTEX=$(DOC).tex
 ARCHIVE=$(DOC).tar.gz
-LHS=Construct
+LHS=Construct ../PNet
 SRC=$(TEX:%=%.tex) $(LHS:%=%.lhs) $(DOCTEX)
 
 $(DOC).pdf: $(SRC)
