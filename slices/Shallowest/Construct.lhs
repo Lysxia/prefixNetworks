@@ -5,46 +5,10 @@ This module implements the construction of a prefix network with minimal depth.
 \begin{code}
 module Shallowest.Construct where
 
-import WSO (
-  Net (..),
-  Fan,
-  singleWire,
-  ($-),
-  (|>),
-  (|||),
-  stack,
-  partition )
-
+import PNet
 import Data.List hiding ( partition )
 \end{code}
 
-A network is represented by the following type:
-\begin{code}% Not part of the module
-data Net a = { width :: Int, net :: Fan a -> [a] -> [a] }
-\end{code}
-
-etcetc... (TODO: separate common definitions from WSO specific ones,
-and put the former into lhs format)
-
-\begin{code}
--- | Network with a single fan
-fanNet :: Int -> Net a
-fanNet n = Net n id
-\end{code}
-
-Sklansky recursion pattern. Fig.~\ref{fig:sklanskyrec}.
-
-\begin{code}
-sklanskyRec :: Net a -> Net a -> Net a
-sklanskyRec a b
-  = a |> (stack (singleWire ||| b)
-              $ fanNet (width b + 1))
-\end{code}
-
-\begin{figure}
-\input{sklanskyrec}
-\caption{\label{fig:sklanskyrec}}
-\end{figure}
 
 Our construction should produce networks of all widths $n$.
 Furthermore, it consists in several ways to
