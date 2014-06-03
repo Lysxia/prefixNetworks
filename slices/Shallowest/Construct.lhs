@@ -26,7 +26,7 @@ in the general case to determine a ``half'':
     $2^{\ceil{\log_2 n}-1}$ and the rest.
 \end{itemize}
 
-Here we consider the second option,
+Here the second option was arbitrarily chosen,
 using the ceiling as the width of the left half.
 
 \begin{code}
@@ -36,13 +36,19 @@ halfOf n = (n + 1) `div` 2
 -- Greatest power of 2?
 \end{code}
 
-
 \section{Construction}
 
 The prefix network \lstinline$make n$
 has width $n$ and depth $\ceil{\log_2 n}$.
 Its right half is defined recursively using the same function.%
 \footnote{\lst$make n$ may be \lst$make1 n 0$?\ldots}
+See Fig.~\ref{fig:make}.
+
+\begin{figure}
+  \input{make}
+  \caption{\label{fig:make}
+  \lst$make n$}
+\end{figure}
 
 \begin{code}
 make
@@ -60,6 +66,12 @@ The left subnetwork is a particular case of \lst$make1 n k$,
 which is a \lst$n$-input prefix network with slack \lst$k$.
 Again, the network is made of two halves,
 the left one is defined with the same function.
+
+\begin{figure}
+  \input{make1}
+  \caption{\label{fig:make1}
+  \lst$make1 n k$}
+\end{figure}
 
 \begin{code}
 make1
@@ -196,7 +208,7 @@ As its first argument, \lst$openSlice$ expects \lst$length xs$,
 which is one less than $n$.
 The \emph{slack} \lst$k$ is the number of levels
 between the secondary output \lst$ts$ and the bottom of the network.
-The \emph{codepth} \lst$d'$ is the number of levels
+The \emph{co-depth} \lst$d'$ is the number of levels
 between the secondary input \lst$us$ and the bottom of the network.
 See Fig.~\ref{fig:openSlice}.
 

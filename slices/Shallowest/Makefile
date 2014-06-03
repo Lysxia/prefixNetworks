@@ -1,8 +1,9 @@
 TEX_TO_PDF=rubber --pdf -s -f -q -I figures
 
 FIG=sklanskyrec \
-		openSlice
-TEX=$(FIG:%=figures/%)
+		openSlice \
+		make make1
+TEX=$(FIG:%=figures/%) table
 DOC=hsnet
 DOCTEX=$(DOC).tex
 ARCHIVE=$(DOC).tar.gz

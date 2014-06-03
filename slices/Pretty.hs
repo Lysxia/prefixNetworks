@@ -13,7 +13,7 @@ module Pretty (
   , renderNetFileV
   ) where
 
-import WSO
+import PNet
 import Data.List
 import Data.Char
 
