@@ -66,6 +66,7 @@ The left subnetwork is a particular case of \lst$make1 n k$,
 which is a \lst$n$-input prefix network with slack \lst$k$.
 Again, the network is made of two halves,
 the left one is defined with the same function.
+See Fig.~\ref{fig:make1}.
 
 \begin{figure}
   \input{make1}
