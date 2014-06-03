@@ -42,10 +42,12 @@ halfOf n = (n + 1) `div` 2
 The prefix network \lstinline$make n$
 has width $n$ and depth $\ceil{\log_2 n}$.
 Its right half is defined recursively using the same function.%
-\footnote{\lst$make n$ may be \lst$make1 n 0$?}
+\footnote{\lst$make n$ may be \lst$make1 n 0$?\ldots}
 
 \begin{code}
-make :: Int {- ^ Width -} -> Net a
+make
+  :: Int {- ^ Width -}
+  -> Net a
 make 1 = singleWire
 make n = sklanskyRec left right
   where
@@ -60,7 +62,10 @@ Again, the network is made of two halves,
 the left one is defined with the same function.
 
 \begin{code}
-make1 :: Int {- ^ Width -} -> Int {- ^ Slack -} -> Net a
+make1
+  :: Int {- ^ Width -}
+  -> Int {- ^ Slack -}
+  -> Net a
 make1 1 _ = singleWire
 make1 n k = left |> right
   where
@@ -79,103 +84,143 @@ The difference with the depth of the last output,
 \lst$k$ is called the \emph{slack} of the network.
 
 \begin{code}
-slice :: Int {- ^ Width -} -> Int {- ^ Slack -} -> Net a
+slice
+  :: Int {- ^ Width -}
+  -> Int {- ^ Slack -}
+  -> Net a
 slice 1 _ = singleWire
 slice n k = Net n net'
   where
-    net' f (x0 : xs) = zs ++ [y0]
+    net' f input = output
       where
-        (ts, zs) = openSlice (n - 1) (k + 1) k f xs ys
-        y0 : ys = reverse . f $ x0 : reverse ts
+        -- (...)
 \end{code}
 
-The following is a peculiar ``slice'', \lst$openSlice n k d'$.
+We will explain the definition of \lst$slice$.
+Note the peculiar usage of \lst$openSlice$,
+containing an apparently circular definition.
+
+\begin{code}
+  --  where
+        x1 : xs = input
+        (ts, ys) = openSlice (n - 1) (k + 1) k f xs us
+        yn : us = reverse . f $ x1 : reverse ts
+        output = ys ++ [yn]
+\end{code}
+
+The function \lst$openSlice$ has type:
 
 \begin{code}
 openSlice
-  :: Int {- ^ Width -} -> Int {- ^ Slack -} -> Int {- ^ Co-depth -}
+  :: Int {- ^ Width -}
+  -> Int {- ^ Slack -}
+  -> Int {- ^ Co-depth -}
   -> (Fan a -> [a] -> [a] -> ([a], [a]))
 \end{code}
 
-\paragraph{An interpretation}
-It can be seen as an \emph{incomplete} prefix network with $n+1$ inputs,
-$x_0,\dots,x_n$, computing $\{x_0\circ\dots\circ x_i\}_{0\leq i\leq n}$.%
+\lst{openSlice (n-1) k d'} can be seen%
 \footnote{This is the interpretation of its usage in \lst$slice$,
-but \lst$openSlice$ is a generalization which also includes
+but \lst$openSlice$ is a generalization which also comprises
 a structure used in its own definition.
 This factors two pieces of code which looked very similar.}
+as an \emph{incomplete} prefix network with $n$ inputs ($n\geq 2$),
+$x_1,\dots,x_n$, computing $\{y_i\}_{i=1,\dots,n}$.
 
-It takes two sets of inputs
-\lst$xs$ (\emph{primary}) and \lst$ys$ (\emph{secondary}),
+\begin{equation}
+  y_i \define x_1\circ\dots\circ x_i,\,i=1,\dots,n.
+\end{equation}
+
+\lst$openSlice$ takes two sets of inputs
+\lst$xs$ (\emph{primary}) and \lst$us$ (\emph{secondary}),
 and produces two sets of outputs
-\lst$ts$ (\emph{secondary}) and \lst$zs$ (\emph{primary}).
+\lst$ts$ (\emph{secondary}) and \lst$ys$ (\emph{primary}).
+
+Contrary to what the type signature of \lst$openSlice$ may suggest,
+the order of dependencies is:
+\lst$xs$, \lst$ts$, \lst$us$, \lst$ys$.
+Hence, this implementation makes extensive use of laziness in Haskell.
 
 The network is pictured with a ``hole'' in the middle,
 separating a \emph{top} subnetwork from a \emph{bottom} one;
 see Fig.~\ref{fig:openSlice}.
 In the top subnetwork,
 the primary inputs \lst$xs$,
-corresponding to $x_1,\dots,x_n$ (note the absence of $x_0$),
-are first combined to produce
-their sum $y'_n\define x_1\circ\dots\circ x_n$,
-yielding a number of intermediate prefixes
-$y'_i\define x_1\circ\dots\circ x_i$ in the process.
-The total sum and some of these intermediate prefixes $y'_i$
+corresponding to $x_2,\dots,x_n$ (note the absence of $x_1$),
+are first combined to produce their sum $t_n$,
+yielding a couple of intermediate prefixes $\{t_i\}_{i\in S}$
+in the process.
+
+\begin{equation}
+  t_i \define x_2\circ\dots\circ x_i,\, i\in S\subset \{2,\dots,n\}.
+\end{equation}
+
+The total sum and some of these prefixes
+$\{t_i\}_{i\in T}$, with $T\subset S$,
 are output as \lst$ts$,
 \emph{from right to left},
-while the other intermediate values ``cross the hole'' unaffected.
+while other values ``cross the hole'' unaffected.
+In the present implementation, $S=T$,
+and they correspond exactly to the right ends of spine nodes
+in the top subnetwork.
+But the optimal choice of $S$ and $T$ is the object of current work.
 
-The hole is filled---from outside this function---with a fan%
+The hole is filled using the following line from the clause above%
 \footnote{in the context of this interpretation.
-The function definition exploits the generality of this hole
-in more elaborate ways.}
-adding $x_0$ to every $y'_i$,
-resulting in prefixes $y_i\define x_0\circ\dots\circ x_i$,
-present in the secondary input \lst$ys$, also from right to left.
+The definition of \lst$openSlice$ exploits the generality of this hole
+to insert more complex combinations of fans.}:
+
+\begin{code}%
+        yn : us = reverse . f $ x1 : reverse ts
+\end{code}
+\ignore{$}%Syntactic coloration is messed up in my editor...
+
+It adds $x_1$ to every $t_i$,
+resulting in prefixes $\{y_i\}_{i\in T}$
+present in the secondary inputs \lst$us$, also from right to left.
+
 The rightmost value $y_n$ is extracted from the hole
-and it is not fed back in \lst$ys$,
-whereas the leftmost value $x_0$ is introduced at the end of \lst$ys$.
+and it is not fed back in \lst$us$,
+whereas the leftmost value $y_1=x_1$ is introduced at the end of \lst$us$.
+
+\begin{equation}
+  y_i = x_1\circ t_i
+\end{equation}
 
 These new inputs are used in the bottom subnetwork
-to finally obtain a prefix network on $x_0,\dots,x_n$.
+to complete the prefix sum.
+The values $\{y_i\}_{i=1,\dots,n-1}$ are output in \lst$ys$.
+(Recall that the last output, $y_n$, was removed in the hole,
+so \lst$openSlice$ doesn't ``see'' it.)
+
+As its first argument, \lst$openSlice$ expects \lst$length xs$,
+which is one less than $n$.
+The \emph{slack} \lst$k$ is the number of levels
+between the secondary output \lst$ts$ and the bottom of the network.
+The \emph{codepth} \lst$d'$ is the number of levels
+between the secondary input \lst$us$ and the bottom of the network.
+See Fig.~\ref{fig:openSlice}.
 
 \begin{figure}
   \input{openSlice}
-  \caption{\label{fig:openSlice}}
+  \caption{\label{fig:openSlice}
+  Representation of \lst$openSlice$}
 \end{figure}
 
-The corresponding usage is the following:
-
-\begin{code}%skipped
-fan :: [a] -> [a]
-input :: [a] -- length : n + 1
-
-x0 : xs = input
-(ts, zs) = openSlice n k d xs ys
-y0 : ys = reverse (fan (x0 : reverse ts))
-output = x0 : zs
-\end{code}
-
-Although not apparent in this usage,
-the order of dependencies is as such:
-\lst$xs$, \lst$ts$, \lst$ys$, \lst$zs$.
-
 \begin{code}
-openSlice n k d' f xs ys
-  | n == 1 = (xs, ys)
-  | d' == 0 = (reverse $ make1 n (k - 1) $- f $ xs, reverse ys)
-    -- equiv. to (reverse $ scanl1 (?) xs, reverse $ ys)
+openSlice m k d' f xs us
+  | m == 1 = (xs, us)
+  | d' == 0 = (reverse $ make1 m (k - 1) $- f $ xs, reverse us)
   | otherwise =
     let
-      (t1, z1) = openSlice      half  (k + 1)      d'  f x1 $ tail ys
-      (t2, z2) = openSlice (n - half) (k + 1) (d' - 1) f x2 y2
-      y2 = reverse . f $ head ys : (reverse $ tail t2)
+      (t1, y1) = openSlice      half  (k + 1)      d'  f x1 $ tail us
+      (t2, y2) = openSlice (m - half) (k + 1) (d' - 1) f x2 u2
+      u2 = reverse . f $ head us : (reverse $ tail t2)
       [t', t_] = f [head t1, head t2] 
       ts = t_ : t' : tail t1
-      zs = z1 ++ z2
-    in (ts, zs)
+      ys = y1 ++ y2
+    in (ts, ys)
   where
-    half = halfOf n
+    half = halfOf m
     (x1, x2) = splitAt half xs
 \end{code}
 

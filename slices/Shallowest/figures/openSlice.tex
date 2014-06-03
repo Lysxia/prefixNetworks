@@ -34,12 +34,16 @@
   \draw[dotted] (\L, \D) -- (\R-1, \D);
 
   \draw[->] (\L-.5, \K) -- (\L-1, \K) node[left] {\lst$ts$};
-  \draw[->] (\L-1, \D) node[left] {\lst$ys$} -- (\L-.5, \D);
+  \draw[->] (\L-1, \D) node[left] {\lst$us$} -- (\L-.5, \D);
 
   \draw[|-|] (\L+1, \T+.5) to node[above] {\lst$xs$} (\R, \T+.5);
-  \draw[|-|] (\L, \B-.5) to node[below] {\lst$zs$} (\R-1, \B-.5);
+  \draw[|-|] (\L, \B-.5) to node[below] {\lst$ys$} (\R-1, \B-.5);
 
   \node[above] at (V0) {$x_0$};
-  \node[below] at (VN) {$y'_n$};
+  \node[below] at (VN) {$t_n$};
+
+  \draw[->] (\R, \B) to node[right] {\lst$d'$} (\R, \D);
+  \draw[-|] (\R+1, \B) to node[right] {\lst$k$} (\R+1,\K);
+  \draw[->] (\R+1, \K) to node[right] {$\ceil{\log(\text{\lst$n$})}$} (\R+1, \T);
 \end{scope}
 \end{tikzpicture}
