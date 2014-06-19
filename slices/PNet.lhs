@@ -17,6 +17,7 @@ module PNet (
   , (|||)
 
   , partition
+  , (.+)
 \end{code}
 
 \ignore{
@@ -315,5 +316,9 @@ lafi n k = Net (2 ^ n) $ net' n k
 --   Hence it may be more efficient for higher order implementations
 multiMemo :: (Memo a, Memo b) => (a -> b -> c) -> a -> b -> c
 multiMemo = memo . (memo .)
+
+infixr 9 .+
+(.+) :: (c -> d) -> (a -> b -> c) -> a -> b -> d
+(.+) = (.) . (.)
 \end{code}
 }
