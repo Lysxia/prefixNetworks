@@ -1,0 +1,163 @@
+\begin{figure}
+  \begin{tikzpicture}
+    \def\T{5}
+    \def\E{3}
+    \def\Ld{2}
+    \def\Rd{1.5}
+    \def\B{0}
+    \def\BB{-1}
+
+    \def\L{0}
+    \def\R{6}
+    \def\A{7}
+
+    \def\Top{(\L+1,\T) -- (\R,\E) -- (\R,\T)}
+    \fill[gray] \Top -- cycle;
+    \draw\Top;
+
+    \def\Bot{(\L,\B) -- (\L,\Ld) -- (\R-1,\B)}
+    \fill[gray] \Bot -- cycle;
+    \draw\Bot;
+
+    \draw[dashed] (\R,\E) -- (\R,\Rd);
+
+    \foreach \x/\y/\z in {
+      (\R,\E)/below left/\lst$sum_xs$,
+      (\R,\Rd)/below/\lst$sum_y_xs$}
+      \fill \x circle (.1) node[\y] {\z};
+
+    \node[above] at (\L,\Ld) {\lst$y$};
+    
+    \draw[->] (\A,\T) -- (\A,\B-.5);
+
+    \draw[dotted] (\R,\E) -- (\A,\E) node[right] {$e$};
+    \draw[dotted] (\L,\Ld) -- (\A,\Ld) node[right] {$\ell$};
+    \draw[dotted] (\R,\Rd) -- (\A,\Rd) node[right] {$r$};
+    \draw[dotted] (\R-1,\B) -- (\A,\B) node[right] {$d$};
+
+    \draw[|-|] (\L,\BB) to node[below] {$(\ell,r,e)$} (\R,\BB);
+  \end{tikzpicture}
+  \caption{\lst$slice' d l r e$}
+\end{figure}
+
+\begin{figure}
+  \begin{tikzpicture}
+    \def\T{8}
+    \def\E{5}
+    \def\Ld{4}
+    \def\Rd{2}
+    \def\B{0}
+    \def\BB{-1}
+
+    \def\L{0}
+    \def\M{4}
+    \def\R{7}
+    \def\A{9}
+
+    \def\LTop{(\L+1,\T) -- (\M,\E+.5) -- (\M,\T)}
+    \fill[gray] \LTop -- cycle;
+    \draw\LTop;
+
+    \def\RTop{(\M+.5,\T) -- (\R,\E+.5) -- (\R,\T)}
+    \fill[gray] \RTop -- cycle;
+    \draw\RTop;
+
+    \def\LBot{(\L,\B) -- (\L,\Ld) -- (\M-.5,\B)}
+    \fill[gray] \LBot -- cycle;
+    \draw\LBot;
+
+    \def\RBot{(\M,\B) -- (\M,\Ld-.5) -- (\R-.5,\B)}
+    \fill[gray] \RBot -- cycle;
+    \draw\RBot;
+
+    \draw (\M,\E+.5) -- (\R,\E) -- (\R,\E+.5);
+    \draw (\L,\Ld) -- (\M,\Ld-.5) -- (\M,\E+.5);
+
+    \draw[dashed] (\R,\E) -- (\R,\Rd);
+
+    \foreach \x/\y/\z in {
+      (\M,\E+.5)/left/\lst$sum_x1$,
+      (\R,\E+.5)/left/\lst$sum_x2$,
+      (\R,\E)/below left/\lst$sum_x1+sum_x2$,
+      (\M,\Ld-.5)/below left/\lst$sum_y_x1$,
+      (\R,\Rd)/below/\lst$sum_y_xs$}
+      \fill \x circle (.1) node[\y] {\z};
+
+    \node[above] at (\L,\Ld) {\lst$y$};
+    
+    \draw[->] (\A,\T) -- (\A,\B-.5);
+
+    \draw[dotted] (\R,\E) -- (\A,\E) node[right] {$e$};
+    \draw[dotted] (\L,\Ld) -- (\A,\Ld) node[right] {$\ell\leq r$};
+    \draw[dotted] (\M,\Ld-.5) -- (\A,\Ld-.5) node[right] {$\ell+1$};
+    \draw[dotted] (\R,\Rd) -- (\A,\Rd) node[right] {$r$};
+    \draw[dotted] (\R-.5,\B) -- (\A,\B) node[right] {$d$};
+
+    \draw[|-|] (\L,\BB) to node[below] {$(\ell,\ell+1,e-1)$} (\M-.2,\BB);
+    \draw[|-|] (\M,\BB) to node[below] {$(\ell+1,r,e-1)$} (\R,\BB);
+    \draw[|-|] (\L,\BB-1) to node[below] {$(\ell,r,e)$} (\R,\BB-1);
+  \end{tikzpicture}
+  \caption{\lst$slice' d l r e | l <= r == sliceLeft d l r e$\\
+  \lst$sum_y_x1 = y + sum_x1$}
+\end{figure}
+
+\begin{figure}
+  \begin{tikzpicture}
+    \def\T{8}
+    \def\E{5}
+    \def\Ld{2}
+    \def\Rd{4}
+    \def\B{0}
+    \def\BB{-1}
+
+    \def\L{0}
+    \def\M{4}
+    \def\R{7}
+    \def\A{9}
+
+    \def\LTop{(\L+1,\T) -- (\M,\E+.5) -- (\M,\T)}
+    \fill[gray] \LTop -- cycle;
+    \draw\LTop;
+
+    \def\RTop{(\M+.5,\T) -- (\R,\E+.5) -- (\R,\T)}
+    \fill[gray] \RTop -- cycle;
+    \draw\RTop;
+
+    \def\LBot{(\L,\B) -- (\L,\Ld) -- (\M-.5,\B)}
+    \fill[gray] \LBot -- cycle;
+    \draw\LBot;
+
+    \def\RBot{(\M,\B) -- (\M,\Rd-.5) -- (\R-.5,\B)}
+    \fill[gray] \RBot -- cycle;
+    \draw\RBot;
+
+    \draw (\M,\E+.5) -- (\R,\E) -- (\R,\E+.5);
+    \draw (\R,\E+.5) -- (\M,\Rd-.5) -- (\R,\Rd);
+
+    \draw[dashed] (\R,\E) -- (\R,\Rd);
+
+    \foreach \x/\y/\z in {
+      (\M,\E+.5)/left/\lst$sum_x1$,
+      (\R,\E+.5)/left/\lst$sum_x2$,
+      %(\R,\E)/below left/\lst$sum_x1+sum_x2$,
+      (\M,\Rd-.5)/below left/\lst$sum_y_x1$,
+      (\R,\Rd)/below/\lst$sum_y_xs$}
+      \fill \x circle (.1) node[\y] {\z};
+
+    \node[above] at (\L,\Ld) {\lst$y$};
+    
+    \draw[->] (\A,\T) -- (\A,\B-.5);
+
+    \draw[dotted] (\R,\E) -- (\A,\E) node[right] {$e$};
+    \draw[dotted] (\L,\Ld) -- (\A,\Ld) node[right] {$\ell$};
+    \draw[dotted] (\M,\Rd-.5) -- (\A,\Rd-.5) node[right] {$r+1$};
+    \draw[dotted] (\R,\Rd) -- (\A,\Rd) node[right] {$r\leq \ell$};
+    \draw[dotted] (\R-.5,\B) -- (\A,\B) node[right] {$d$};
+
+    \draw[|-|] (\L,\BB) to node[below] {$(\ell,r+1,e-1)$} (\M-.2,\BB);
+    \draw[|-|] (\M,\BB) to node[below] {$(r+1,r,e-1)$} (\R,\BB);
+    \draw[|-|] (\L,\BB-1) to node[below] {$(\ell,r,e)$} (\R,\BB-1);
+  \end{tikzpicture}
+  \caption{\lst$slice' d l r e | l > r == sliceRight d l r e$\\
+  \lst$sum_y_x1 = sum_y_xs - sum_x2$}
+\end{figure}
