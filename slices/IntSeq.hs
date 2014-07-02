@@ -8,22 +8,52 @@ module IntSeq (
   sergeev
   ) where
 
+import Data.Array
+
 -- | Max width of a zero-deficiency slice with parameters (k, d)
-zsWidth :: Int -> Int -> Int
-zsWidth = \k d -> zsWidthMem !! (d-1) !! (k - 1)
+zsWidth :: Int -> Int -> Integer
+zsWidth = \d k -> zsWidthMem !! (d-1) !! (k-1)
 
 -- Memoization strategy for the above
-zsWidthMem = [[zsW' k d | k <- [1 .. d]] | d <- [1 ..]]
+zsWidthMem = do
+  d <- [1 ..]
+  return $ do
+    k <- [1 .. d]
+    return $ zsW' d k
 
 -- 
-zsW' k d
+zsW' d k
   | k == 1    = 2
   | k == d    = d + 1
-  | otherwise = zsWidth (k-1) (d-1) + zsWidth (k-1) (d-2) - 1
+  | otherwise = zsWidth (fI d-1) (fI k-1) + zsWidth (fI d-2) (fI k-1) - 1
+  where
+    fI = fromIntegral
 
 -- | Max width of a zero-deficiency network with max depth d
-zWidth :: Int -> Int
-zWidth d = 1 - d + sum [zsWidth k d | k <- [1..d]]
+zWidth :: Int -> Integer
+zWidth d = 1 - fromIntegral d + sum [zsWidth d k | k <- [1..d]]
+
+--
+
+xorZWidth :: Int -> Integer
+xorZWidth d = 1 - fromIntegral d + sum [xorZsWidth (k-1) (k-1) k | k <- [1 .. d]]
+  where
+    xorZsWidth :: Int -> Int -> Int -> Integer
+    xorZsWidth = \e l r -> xorZsWidthMem ! (e, l, r)
+    
+    xorZsWidthMem = array ((0,0,1), (d-1, d, d)) $ do
+      e <- [0 .. d-1]
+      l <- [0 .. d]
+      r <- [1 .. d]
+      return $ ((e,l,r), xorZsW' e l r)
+    
+    xorZsW' e l r
+      | d == l && l == r = 2
+      | e == 0 = 2
+      | d == r || (d > l && l <= r)  = xorZsWidth (e-1) l (l+1)
+                                     + xorZsWidth (e-1) (l+1) r - 1
+      | d == l || (d > r && l > r) = xorZsWidth (e-1) l (r+1)
+                                   + xorZsWidth (e-1) (r+1) r - 1
 
 --
 
