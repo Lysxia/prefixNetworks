@@ -1,33 +1,34 @@
 module Main where
 
 import Scans
+
+import Control.Exception
+import Control.Monad
+
+import Criterion.Main
+
 import Data.Array.Repa
 import Data.Array.Repa.Index (ix1)
+import Data.Array.Repa.Repr.Vector (V)
+import Data.Functor.Identity
 
 --import Data.List
 
-import Criterion.Main
 import System.Random
 import System.Environment (getArgs)
 
-import Data.Functor.Identity
-
-import Control.Exception
-
 main = do
   s <- getArgs
-  if compute ua `equalsS` fromListUnboxed (ix1 n) (scanl1 op rand)
-    then return ()
-    else throwIO $ AssertionFailed "Incorrect implementation"
+--  unless (compute ua `equalsS` fromListUnboxed (ix1 n) (scanl1 op rand))
+--    (throwIO $ AssertionFailed "Incorrect implementation")
   defaultMain
     [ bench name $ whnf compute ua ]
   where
     compute = runIdentity . scan op
-    scan :: Monad m
-         => (Int -> Int -> Int) -> Array U DIM1 Int -> m (Array U DIM1 Int)
-    scan = fastScan 4
+    scan :: (Int -> Int -> Int) -> Array U DIM1 Int -> Identity (Array U DIM1 Int)
+    scan = fastScan 2
     name = "FastScan"
-    op = (+)
+    op = (*)
     n = 1000000
     rand = randomInts n
     ua = fromListUnboxed (ix1 n) $ rand
